@@ -90,6 +90,10 @@ end
             tests_without_errors()
         end
 
+        @testset "`SlackThread` constructor exceptions" begin
+            @test_throws MethodError SlackThread(1)
+        end
+
         @testset "`thread` message exceptions" begin
             withenv("SLACK_TOKEN" => "hi", "SLACK_CHANNEL" => "bye") do
                 thread = SlackThread()
@@ -130,6 +134,13 @@ end
     try
         @testset "Non-throwing tests" begin
             tests_without_errors()
+        end
+
+        @testset "`SlackThread` constructor exceptions" begin
+            msg = "Error when constructing `SlackThread`"
+            thread = (@test_logs (:error, msg) SlackThread(1))
+            @test thread.ts === nothing
+            @test thread.channel === nothing
         end
 
         @testset "`thread` message exceptions" begin
