@@ -7,7 +7,7 @@ using FileIO
 export SlackThread
 
 mutable struct SlackThread
-    channel::String
+    channel::Union{String,Nothing}
     ts::Union{String,Nothing}
 end
 
@@ -16,7 +16,7 @@ StructTypes.StructType(::Type{SlackThread}) = StructTypes.Struct()
 function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
     if channel === nothing
         #TODO: Use Preferences.jl for default channel?
-        throw(ArgumentError("TODO"))
+        @warn "Channel not passed, nor `SLACK_CHANNEL` environmental variable set, so will only emit logging statements."
     end
     return SlackThread(channel, nothing)
 end
@@ -91,6 +91,9 @@ function slack_message(thread::SlackThread, text::AbstractString)
     token = get(ENV, "SLACK_TOKEN", nothing)
     if token === nothing
         @warn "No Slack token provided; message not sent." data api
+        return nothing
+    elseif thread.channel === nothing
+        @warn "No Slack channel provided; message not sent." data api
         return nothing
     else
         @debug "Sending slack message" data api
