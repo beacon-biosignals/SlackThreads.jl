@@ -13,6 +13,27 @@ end
 
 StructTypes.StructType(::Type{SlackThread}) = StructTypes.Struct()
 
+const CATCH_EXCEPTIONS = Ref(true)
+const EXCEPTION_LOG_STR = "Error when attempting to send message to Slack thread"
+
+# We turn off exception handling for our tests, to ensure we aren't throwing exceptions
+# that we're missing. But we have it on by default, since in ordinary usage we want to
+# be sure we are catching all exceptions.
+macro maybetry(expr)
+    quote
+        if CATCH_EXCEPTIONS[]
+            try
+                $(esc(expr))
+            catch e
+                @error EXCEPTION_LOG_STR exception = (e, catch_backtrace())
+                nothing
+            end
+        else
+            $(esc(expr))
+        end
+    end
+end
+
 function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
     if channel === nothing
         #TODO: Use Preferences.jl for default channel?
@@ -58,18 +79,20 @@ Slack choose how to display the object, and helps FileIO choose how to save the
 object. E.g. `"my_plot.png"` instead of `"my_plot"`.
 """
 function (thread::SlackThread)(text, uploads...)
-    if length(uploads) == 1
-        # special case: upload directly to thread
-        # TODO. For now, fallback to the general approach,
-        # which is fine but just leaves an `edited` note
-        # on the message.
+    @maybetry begin
+        if length(uploads) == 1
+            # special case: upload directly to thread
+            # TODO. For now, fallback to the general approach,
+            # which is fine but just leaves an `edited` note
+            # on the message.
+        end
+        for item in uploads
+            r = upload(item)
+            r === nothing && continue
+            text *= format_slack_link(r.file.permalink, " ")
+        end
+        return slack_message(thread, text)
     end
-    for item in uploads
-        r = upload(item)
-        r === nothing && continue
-        text *= format_slack_link(r.file.permalink, " ")
-    end
-    return slack_message(thread, text)
 end
 
 """
@@ -101,12 +124,8 @@ function slack_message(thread::SlackThread, text::AbstractString)
     end
     auth = "Authorization: Bearer $(token)"
 
-    response = try
+    response = @maybetry begin
         JSON3.read(readchomp(`curl -s -X POST -H $auth -H 'Content-type: application/json; charset=utf-8' --data $(data_str) $api`))
-    catch e
-        @error "Error when attempting to send message to Slack thread" exception = (e,
-                                                                                    catch_backtrace())
-        nothing
     end
     response === nothing && return nothing
     @debug "Slack responded" response
@@ -140,14 +159,10 @@ function upload_file(local_path::AbstractString)
 
     auth = "Authorization: Bearer $(token)"
 
-    response = return try
+    response = @maybetry begin
         JSON3.read(readchomp(`curl -s -F file=@$(local_path) -H $auth $api`))
         # directly to thread:
         # JSON3.read(readchomp(`curl -s -F file=@$(local_path) -F "initial_comment=$(comment)" -F channels=$(thread.channel) -F thread_ts=$(thread.ts) -H $auth $api`))
-    catch e
-        @error "Error when attempting to send image to Slack thread" exception = (e,
-                                                                                  catch_backtrace())
-        nothing
     end
     response === nothing && return nothing
 
