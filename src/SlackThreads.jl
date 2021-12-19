@@ -66,6 +66,7 @@ function (thread::SlackThread)(text, uploads...)
     end
     for item in uploads
         r = upload(item)
+        r === nothing && continue
         text *= format_slack_link(r.file.permalink, " ")
     end
     return slack_message(thread, text)
@@ -105,11 +106,12 @@ function slack_message(thread::SlackThread, text::AbstractString)
     catch e
         @error "Error when attempting to send message to Slack thread" exception = (e,
                                                                                     catch_backtrace())
-        e
+        nothing
     end
+    response === nothing && return nothing
     @debug "Slack responded" response
 
-    if thread.ts === nothing && hasproperty(response, :ts)
+    if thread.ts === nothing && hasproperty(response, :ts) === true
         thread.ts = response.ts
     end
     return response
@@ -130,10 +132,10 @@ function upload_file(local_path::AbstractString)
 
     token = get(ENV, "SLACK_TOKEN", nothing)
     if token === nothing
-        @warn "No Slack token provided; file not sent." api name
+        @warn "No Slack token provided; file not sent." api
         return nothing
     else
-        @debug "Uploading slack file" api name
+        @debug "Uploading slack file" api
     end
 
     auth = "Authorization: Bearer $(token)"
@@ -145,7 +147,10 @@ function upload_file(local_path::AbstractString)
     catch e
         @error "Error when attempting to send image to Slack thread" exception = (e,
                                                                                   catch_backtrace())
+        nothing
     end
+    response === nothing && return nothing
+
     @debug "Slack responded" response
     return response
 end
