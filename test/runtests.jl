@@ -49,6 +49,8 @@ function tests_without_errors()
             # from manual testing.
             # This could break for innocuous reasons; in that case, just update it here
             # or find a better test.
+            # Currently, this is the only test that checks that the requests we are making
+            # are reasonable; we could emit nonsense and all the other tests would pass!
             @test cmd ==
                   `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","text":"hi"}' https://slack.com/api/chat.postMessage`
         end
