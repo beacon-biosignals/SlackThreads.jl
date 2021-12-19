@@ -112,9 +112,73 @@ function slack_message(thread::SlackThread, text::AbstractString)
     return response
 end
 
+function upload_bytes(name, bytes::Vector{UInt8})
+    mktempdir() do dir
+        local_path = joinpath(dir, name)
+        write(local_path, bytes)
+        return upload_file(local_path)
+    end
+end
+
+upload_file(path) = upload_bytes(basename(path), read(path))
+
+function upload_file(local_path::AbstractString)
+    api = "https://slack.com/api/files.upload"
+
+    token = get(ENV, "SLACK_TOKEN", nothing)
+    if token === nothing
+        @warn "No Slack token provided; file not sent." api name
+        return nothing
+    else
+        @debug "Uploading slack file" api name
+    end
+
+    auth = "Authorization: Bearer $(token)"
+
+    response = return try
+        JSON3.read(readchomp(`curl -s -F file=@$(local_path) -H $auth $api`))
+    catch e
+        @error "Error when attempting to send image to Slack thread" exception = (e,
+                                                                                  catch_backtrace())
+    end
+    @debug "Slack responded" response
+    return response
+end
+
+function format_slack_link(uri, msg=nothing)
+    if msg === nothing
+        return "<$(uri)>"
+    else
+        return "<$(uri)|$(msg)>"
+    end
+end
+
+const INTERRUPT_TEXT = """
+                       `InterruptException` recieved.
+
+                       Probably you know about this already.
+                       """
+
+exception_text(exception, backtrace) = """
+            :alert: Error occured! :alert:
+
+            ```
+            $(sprint(Base.display_error, exception, backtrace))
+            ```
+            """
+
+function slack_log_exception(exception, backtrace; thread, interrupt_text=INTERRUPT_TEXT,
+                             exception_text=exception_text)
+    msg = exception isa InterruptException ? interrupt_text :
+          exception_text(exception, backtrace)
+    slack_message(thread, msg)
+    return nothing
+end
+
+# TODO: extract code for uploading directly to thread
+#
 # """
 #     slack_image(thread::SlackThread, bytes::Vector{UInt8}; comment="Test image.")
-#     slack_image(thread::SlackThread, path::AbstractFilePath; comment="Test image.")
 
 # Sends an image to a Slack thread. If no thread exists, it creates one and
 # stores it in `thread` so future messages will go to that thread.
@@ -153,75 +217,5 @@ end
 #     end
 #     return response
 # end
-
-function upload_bytes(name, bytes::Vector{UInt8})
-    mktempdir() do dir
-        local_path = joinpath(dir, name)
-        write(local_path, bytes)
-        return upload_file(local_path)
-    end
-end
-
-upload_file(path) = upload_bytes(basename(path), read(path))
-
-function upload_file(local_path::AbstractString)
-    api = "https://slack.com/api/files.upload"
-
-    token = get(ENV, "SLACK_TOKEN", nothing)
-    if token === nothing
-        @warn "No Slack token provided; file not sent." api name
-        return nothing
-    else
-        @debug "Uploading slack file" api name
-    end
-
-    auth = "Authorization: Bearer $(token)"
-
-    response = return try
-        JSON3.read(readchomp(`curl -s -F file=@$(local_path) -H $auth $api`))
-    catch e
-        @error "Error when attempting to send image to Slack thread" exception = (e,
-                                                                                  catch_backtrace())
-    end
-    @debug "Slack responded" response
-    return response
-end
-
-# function slack_image(thread::SlackThread, path::AbstractFilePath; comment="Test image.")
-#     return slack_image(thread, read(path), basename(path); comment)
-# end
-
-# Let's use an alias, since they are the same function in fact ;)
-# const slack_file = slack_image
-
-function format_slack_link(uri, msg=nothing)
-    if msg === nothing
-        return "<$(uri)>"
-    else
-        return "<$(uri)|$(msg)>"
-    end
-end
-
-const INTERRUPT_TEXT = """
-                       `InterruptException` recieved.
-
-                       Probably you know about this already.
-                       """
-
-exception_text(exception, backtrace) = """
-            :alert: Error occured! :alert:
-
-            ```
-            $(sprint(Base.display_error, exception, backtrace))
-            ```
-            """
-
-function slack_log_exception(exception, backtrace; thread, interrupt_text=INTERRUPT_TEXT,
-                             exception_text=exception_text)
-    msg = exception isa InterruptException ? interrupt_text :
-          exception_text(exception, backtrace)
-    slack_message(thread, msg)
-    return nothing
-end
 
 end # module
