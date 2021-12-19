@@ -27,7 +27,8 @@ function JET_tests()
     end
 end
 
-# These can be run in both paths
+# These can be run in both paths (with exceptions or without),
+# since they don't involve throwing exceptions.
 function tests_without_errors()
     withenv("SLACK_TOKEN" => "hi", "SLACK_CHANNEL" => nothing) do
         thread = (@test_logs (:warn, r"Channel") SlackThread())
@@ -85,6 +86,11 @@ function tests_without_errors()
     end
 end
 
+# Now we test with `SlackThreads.CATCH_EXCEPTIONS[] = false`, i.e.
+# with throwing exceptions. This option exists only for testing, really.
+# The point is we don't want our tests to "pass" while logging exceptions
+# all over the place. If we disable our special "log exceptions instead of throwing"
+# code, do we still pass our tests?
 @testset "With exceptions" begin
     status = SlackThreads.CATCH_EXCEPTIONS[]
     SlackThreads.CATCH_EXCEPTIONS[] = false
@@ -133,6 +139,8 @@ end
     end
 end
 
+# Here, we check that our special "exceptions as logs" machinery works
+# correctly and emits logs.
 @testset "Exceptions as logs" begin
     status = SlackThreads.CATCH_EXCEPTIONS[]
     SlackThreads.CATCH_EXCEPTIONS[] = true
