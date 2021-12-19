@@ -14,32 +14,39 @@ end
 StructTypes.StructType(::Type{SlackThread}) = StructTypes.Struct()
 
 const CATCH_EXCEPTIONS = Ref(true)
-const EXCEPTION_LOG_STR = "Error when attempting to send message to Slack thread"
 
 # We turn off exception handling for our tests, to ensure we aren't throwing exceptions
 # that we're missing. But we have it on by default, since in ordinary usage we want to
 # be sure we are catching all exceptions.
-macro maybetry(expr)
+# We wrap all public API methods in this, which should make it very difficult to throw
+# an exception.
+macro maybecatch(expr, exception_string)
     quote
         if CATCH_EXCEPTIONS[]
             try
                 $(esc(expr))
             catch e
-                @error EXCEPTION_LOG_STR exception = (e, catch_backtrace())
+                @error $(exception_string) exception = (e, catch_backtrace())
                 nothing
             end
         else
-            $(esc(expr))
+            let # introduce a local scope like `try` does
+                $(esc(expr))
+            end
         end
     end
 end
 
 function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
-    if channel === nothing
-        #TODO: Use Preferences.jl for default channel?
-        @warn "Channel not passed, nor `SLACK_CHANNEL` environmental variable set, so will only emit logging statements."
-    end
-    return SlackThread(channel, nothing)
+    thread = @maybecatch begin
+        if channel === nothing
+            #TODO: Use Preferences.jl for default channel?
+            @warn "Channel not passed, nor `SLACK_CHANNEL` environmental variable set, so will only emit logging statements."
+        end
+        SlackThread(channel, nothing)
+    end "Error when constructing `SlackThread`"
+    thread === nothing && return SlackThread(nothing, nothing)
+    return thread
 end
 
 function upload(item::Pair{<:AbstractString,<:Any})
@@ -79,7 +86,7 @@ Slack choose how to display the object, and helps FileIO choose how to save the
 object. E.g. `"my_plot.png"` instead of `"my_plot"`.
 """
 function (thread::SlackThread)(text, uploads...)
-    @maybetry begin
+    return @maybecatch begin
         if length(uploads) == 1
             # special case: upload directly to thread
             # TODO. For now, fallback to the general approach,
@@ -91,7 +98,7 @@ function (thread::SlackThread)(text, uploads...)
             r === nothing && continue
             text *= format_slack_link(r.file.permalink, " ")
         end
-        return slack_message(thread, text)
+        slack_message(thread, text)
     end
 end
 
@@ -124,12 +131,13 @@ function slack_message(thread::SlackThread, text::AbstractString)
     end
     auth = "Authorization: Bearer $(token)"
 
-    response = @maybetry begin
+    response = @maybecatch begin
         JSON3.read(readchomp(`curl -s -X POST -H $auth -H 'Content-type: application/json; charset=utf-8' --data $(data_str) $api`))
-    end
+    end "Error when attempting to send message to Slack thread"
+
     response === nothing && return nothing
     @debug "Slack responded" response
-
+    
     if thread.ts === nothing && hasproperty(response, :ts) === true
         thread.ts = response.ts
     end
@@ -151,21 +159,21 @@ function upload_file(local_path::AbstractString)
 
     token = get(ENV, "SLACK_TOKEN", nothing)
     if token === nothing
-        @warn "No Slack token provided; file not sent." api
+        @warn "No Slack token provided; file not sent." api local_path
         return nothing
     else
-        @debug "Uploading slack file" api
+        @debug "Uploading slack file" api local_path
     end
 
     auth = "Authorization: Bearer $(token)"
 
-    response = @maybetry begin
+    response = @maybecatch begin
         JSON3.read(readchomp(`curl -s -F file=@$(local_path) -H $auth $api`))
         # directly to thread:
         # JSON3.read(readchomp(`curl -s -F file=@$(local_path) -F "initial_comment=$(comment)" -F channels=$(thread.channel) -F thread_ts=$(thread.ts) -H $auth $api`))
-    end
-    response === nothing && return nothing
+    end "Error when attempting to upload file to Slack"
 
+    response === nothing && return nothing
     @debug "Slack responded" response
     return response
 end
