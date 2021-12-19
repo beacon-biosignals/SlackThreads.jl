@@ -37,6 +37,12 @@ macro maybecatch(expr, exception_string)
     end
 end
 
+"""
+    SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
+
+Constructs a `SlackThread`. A channel should be specified by it's ID
+(a number like `C01DN7T7WPQ` at the bottom of the "About" section of the channel).
+"""
 function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
     thread = @maybecatch begin
         if channel === nothing
@@ -81,7 +87,7 @@ function (thread::SlackThread)(text::AbstractString, uploads...)
             # special case: upload directly to thread
             # TODO. For now, fallback to the general approach,
             # which is fine but just leaves an `edited` note
-            # on the message.
+            # on the message, and uses two API calls.
         end
         for item in uploads
             r = upload(item)

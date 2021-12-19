@@ -42,6 +42,7 @@ For example,
 slack_log_exception(thread) do
     sqrt(-1)
 end
+```
 
-This *will* rethrow the exception, after logging it (and the stacktrace) to the Slack thread.
+This *will* rethrow the exception, after logging it (and the stacktrace) to the Slack thread
 Any errors encountered while logging the message (e.g. due to network issues or authentication problems) will be caught and emitted as `@error` logs.
