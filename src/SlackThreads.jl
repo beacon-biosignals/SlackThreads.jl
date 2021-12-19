@@ -44,8 +44,8 @@ end
 
 Each item in `uploads` may be:
 
-* a pair of the form `name_with_extension => object`,
-* or a path to a file
+* a pair of the form `name_with_extension::AbstractString => object`,
+* or a path to a file (i.e. anything that supports `read` and `basename`)
 
 Valid `object`s are:
 
