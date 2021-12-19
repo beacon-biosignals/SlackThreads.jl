@@ -4,7 +4,6 @@ using JSON3
 using StructTypes
 using FileIO
 
-
 export SlackThread, slack_log_exception
 
 mutable struct SlackThread
@@ -38,9 +37,6 @@ macro maybecatch(expr, exception_string)
     end
 end
 
-include("slack_api.jl")
-
-
 function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
     thread = @maybecatch begin
         if channel === nothing
@@ -52,7 +48,6 @@ function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
     thread === nothing && return SlackThread(nothing, nothing)
     return thread
 end
-
 
 function format_slack_link(uri, msg=nothing)
     if msg === nothing
@@ -97,36 +92,7 @@ function (thread::SlackThread)(text::AbstractString, uploads...)
     end "Error when attempting to send message to Slack thread"
 end
 
-function slack_log_exception(f, thread::SlackThread; interrupt_text=INTERRUPT_TEXT, exception_text=exception_text)
-    try
-        f()
-    catch exception
-        slack_log_exception(exception, catch_backtrace(); thread, interrupt_text,
-        exception_text)
-        rethrow()
-    end
-end
-
-const INTERRUPT_TEXT = """
-                       `InterruptException` recieved.
-
-                       Probably you know about this already.
-                       """
-
-exception_text(exception, backtrace) = """
-            :alert: Error occured! :alert:
-
-            ```
-            $(sprint(Base.display_error, exception, backtrace))
-            ```
-            """
-
-function slack_log_exception(exception, backtrace; thread, interrupt_text=INTERRUPT_TEXT,
-                             exception_text=exception_text)
-    msg = exception isa InterruptException ? interrupt_text :
-          exception_text(exception, backtrace)
-    send_message(thread, msg)
-    return nothing
-end
+include("slack_api.jl")
+include("slack_log_exception.jl")
 
 end # module
