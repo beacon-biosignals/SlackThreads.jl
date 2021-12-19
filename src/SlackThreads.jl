@@ -31,14 +31,11 @@ upload(name, v::Vector{UInt8}) = upload_bytes(name, v)
 upload(name, v::AbstractString) = upload_bytes(name, Vector{UInt8}(v))
 
 function upload(name, v)
-    if !unknown(query(v))
-        return mktempdir() do dir
-            local_path = joinpath(dir, name)
-            save(local_path, v)
-            return upload_file(local_path)
-        end
+    return mktempdir() do dir
+        local_path = joinpath(dir, name)
+        save(local_path, v)
+        return upload_file(local_path)
     end
-    error("TODO2")
 end
 
 """
@@ -58,7 +55,7 @@ Valid `object`s are:
 function (thread::SlackThread)(text, uploads...)
     for item in uploads
         r = upload(item)
-        text *= "\n" * format_slack_link(r.file.permalink, " ")
+        text *= format_slack_link(r.file.permalink, " ")
     end
     return slack_message(thread, text)
 end
