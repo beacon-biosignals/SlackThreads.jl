@@ -43,6 +43,11 @@ function tests_without_errors()
         end
 
         hi_patch = readchomp_input_patch() do cmd
+            # Just a reference test; we don't really want to hit up the Slack API
+            # from CI here, so let's just check the curl query is one that works
+            # from manual testing.
+            # This could break for innocuous reasons; in that case, just update it here
+            # or find a better test.
             @test cmd ==
                   `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","text":"hi"}' https://slack.com/api/chat.postMessage`
         end
