@@ -1,4 +1,12 @@
 #####
+##### Exceptions
+#####
+
+struct SlackError <: Exception
+    error::String
+end
+
+#####
 ##### Attachments
 #####
 
@@ -8,7 +16,7 @@
 # entrypoint is `upload(item)`.
 # Pairs are destructured to to the two argument `upload(name, object)` methods.
 # Non-pairs are assumed to be file paths and are dispached to `upload_file(path)`.
-upload(item::Pair) = upload(item...)
+upload(item::Pair) = upload(first(item), last(item))
 upload(file) = upload_file(file)
 
 # Two-argument `upload`. Second argument is assumed to be an object to write, not a filepath
@@ -58,6 +66,13 @@ function upload_file(local_path::AbstractString)
     end "Error when attempting to upload file to Slack"
 
     response === nothing && return nothing
+
+    if haskey(response, :ok) === true && response[:ok] != true
+        return @maybecatch begin
+            throw(SlackError(response.error))
+        end "Error reported by Slack API"
+    end
+
     @debug "Slack responded" response
     return response
 end
@@ -92,6 +107,12 @@ function send_message(thread::SlackThread, text::AbstractString)
 
     response === nothing && return nothing
     @debug "Slack responded" response
+
+    if haskey(response, :ok) === true && response[:ok]
+        return @maybecatch begin
+            throw(SlackError(response.error))
+        end "Error reported by Slack API"
+    end
 
     if thread.ts === nothing && hasproperty(response, :ts) === true
         thread.ts = response.ts

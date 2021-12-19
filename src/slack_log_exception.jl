@@ -57,7 +57,7 @@ end
 function slack_log_exception(thread::SlackThread, exception, backtrace;
                              interrupt_text=DEFAULT_INTERRUPT_TEXT,
                              exception_text=default_exception_text)
-    @maybetry begin
+    @maybecatch begin
         msg = exception isa InterruptException ? interrupt_text :
               exception_text(exception, backtrace)
         send_message(thread, msg)
