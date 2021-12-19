@@ -83,18 +83,20 @@ object. E.g. `"my_plot.png"` instead of `"my_plot"`.
 """
 function (thread::SlackThread)(text::AbstractString, uploads...)
     return @maybecatch begin
+        if thread.channel === nothing
+            @warn "No Slack channel configured; message not sent." text uploads
+            return nothing
+        end
         if isempty(uploads)
+            # send directly
             return send_message(thread, text)
         end
         mktempdir() do dir
             if length(uploads) == 1
                 # special case: upload directly to thread
-                extra_args = [`-F "initial_comment=$(text)"`]
-                if !isnothing(thread.channel)
-                    push!(extra_args, `-F channels=$(thread.channel)`)
-                end
+                extra_args = ["-F", "initial_comment=$(text)", "-F", "channels=$(thread.channel)"]
                 if !isnothing(thread.ts)
-                    push!(extra_args, `-F thread_ts=$(thread.ts)`)
+                    push!(extra_args, "-F", "thread_ts=$(thread.ts)")
                 end
                 return upload_file(local_file(only(uploads); dir); extra_args)
             end

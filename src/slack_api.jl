@@ -32,13 +32,13 @@ function local_file(name, object; dir=mktempdir())
     if object isa Union{Vector{UInt8}, <:AbstractString}
         write(local_path, object)
     else
-        save(local_path, v)
+        save(local_path, object)
     end
     return local_path
 end
 
 
-function upload_file(local_path::AbstractString; extra_args=[``])
+function upload_file(local_path::AbstractString; extra_args=String[])
     api = "https://slack.com/api/files.upload"
 
     token = get(ENV, "SLACK_TOKEN", nothing)
@@ -52,7 +52,8 @@ function upload_file(local_path::AbstractString; extra_args=[``])
     auth = "Authorization: Bearer $(token)"
 
     response = @maybecatch begin
-        JSON3.read(readchomp(`curl -s -F file=@$(local_path) $(extra_args) -H $auth $api`))
+        cmd = `curl -s -F file=@$(local_path) $(extra_args) -H $auth $api`
+        JSON3.read(readchomp(cmd))
     end "Error when attempting to upload file to Slack"
 
     response === nothing && return nothing
@@ -84,7 +85,7 @@ function send_message(thread::SlackThread, text::AbstractString)
         @warn "No Slack token provided; message not sent." data api
         return nothing
     elseif thread.channel === nothing
-        @warn "No Slack channel provided; message not sent." data api
+        @warn "No Slack channel configured; message not sent." data api
         return nothing
     else
         @debug "Sending slack message" data api
@@ -98,7 +99,7 @@ function send_message(thread::SlackThread, text::AbstractString)
     response === nothing && return nothing
     @debug "Slack responded" response
 
-    if haskey(response, :ok) === true && response[:ok]
+    if haskey(response, :ok) === true && response[:ok] === false
         return @maybecatch begin
             throw(SlackError(response.error))
         end "Error reported by Slack API"
