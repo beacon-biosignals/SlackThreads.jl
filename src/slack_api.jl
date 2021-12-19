@@ -13,40 +13,32 @@ end
 # Upload dispatch strategy:
 # We need a local file to upload.
 #
-# entrypoint is `upload(item)`.
-# Pairs are destructured to to the two argument `upload(name, object)` methods.
-# Non-pairs are assumed to be file paths and are dispached to `upload_file(path)`.
-upload(item::Pair) = upload(first(item), last(item))
-upload(file) = upload_file(file)
-
-# Two-argument `upload`. Second argument is assumed to be an object to write, not a filepath
-# (since that is only allowed in the 1-arg case). Bytes are passed on as-is; strings are converted
-# to bytes, and everything else uses `FileIO.save`.
-upload(name, v::Vector{UInt8}) = upload_bytes(name, v)
-upload(name, v::AbstractString) = upload_bytes(name, Vector{UInt8}(v))
-
-function upload(name, v)
-    return mktempdir() do dir
-        local_path = joinpath(dir, name)
-        save(local_path, v)
-        return upload_file(local_path)
-    end
-end
-
-function upload_bytes(name, bytes::Vector{UInt8})
-    mktempdir() do dir
-        local_path = joinpath(dir, name)
-        write(local_path, bytes)
-        return upload_file(local_path)
-    end
-end
+# entrypoint is `local_file(item)`.
+# Pairs are destructured to to the two argument `local_file(name, object)` methods.
+# Non-pairs are assumed to be file paths and are dispached to `local_file(path)`.
+local_file(item::Pair; kw...) = local_file(first(item), last(item); kw...)
+local_file(file::AbstractString; kw...) = file
 
 # If the `path` is not a `AbstractString`, we assume it isn't a local path
 # (maybe it's an S3Path, etc.). So we conservatively write a new local file to upload.
 # Thus, we only generically require `basename` and `read` to be supported for path types.
-upload_file(path) = upload_bytes(basename(path), read(path))
+local_file(file; kw...) = local_file(basename(file), read(file); kw...)
 
-function upload_file(local_path::AbstractString)
+# Two-argument `local_file`. Second argument is assumed to be an object to write, not a filepath
+# (since that is only allowed in the 1-arg case). Bytes and strings are written to a file and everything else uses `FileIO.save`.
+
+function local_file(name, object; dir=mktempdir())
+    local_path = joinpath(dir, name)
+    if object isa Union{Vector{UInt8}, <:AbstractString}
+        write(local_path, object)
+    else
+        save(local_path, v)
+    end
+    return local_path
+end
+
+
+function upload_file(local_path::AbstractString; extra_args=[``])
     api = "https://slack.com/api/files.upload"
 
     token = get(ENV, "SLACK_TOKEN", nothing)
@@ -60,9 +52,7 @@ function upload_file(local_path::AbstractString)
     auth = "Authorization: Bearer $(token)"
 
     response = @maybecatch begin
-        JSON3.read(readchomp(`curl -s -F file=@$(local_path) -H $auth $api`))
-        # directly to thread: (not supported yet)
-        # JSON3.read(readchomp(`curl -s -F file=@$(local_path) -F "initial_comment=$(comment)" -F channels=$(thread.channel) -F thread_ts=$(thread.ts) -H $auth $api`))
+        JSON3.read(readchomp(`curl -s -F file=@$(local_path) $(extra_args) -H $auth $api`))
     end "Error when attempting to upload file to Slack"
 
     response === nothing && return nothing

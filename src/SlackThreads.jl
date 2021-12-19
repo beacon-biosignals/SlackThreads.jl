@@ -83,18 +83,31 @@ object. E.g. `"my_plot.png"` instead of `"my_plot"`.
 """
 function (thread::SlackThread)(text::AbstractString, uploads...)
     return @maybecatch begin
-        if length(uploads) == 1
-            # special case: upload directly to thread
-            # TODO. For now, fallback to the general approach,
-            # which is fine but just leaves an `edited` note
-            # on the message, and uses two API calls.
+        if isempty(uploads)
+            return send_message(thread, text)
         end
-        for item in uploads
-            r = upload(item)
-            r === nothing && continue
-            text *= format_slack_link(r.file.permalink, " ")
+        mktempdir() do dir
+            if length(uploads) == 1
+                # special case: upload directly to thread
+                extra_args = [`-F "initial_comment=$(text)"`]
+                if !isnothing(thread.channel)
+                    push!(extra_args, `-F channels=$(thread.channel)`)
+                end
+                if !isnothing(thread.ts)
+                    push!(extra_args, `-F thread_ts=$(thread.ts)`)
+                end
+                return upload_file(local_file(only(uploads); dir); extra_args)
+            end
+
+            for item in uploads
+                r = upload_file(local_file(item; dir))
+                r === nothing && continue
+                text *= format_slack_link(r.file.permalink, " ")
+            end
+
+            return send_message(thread, text)
         end
-        send_message(thread, text)
+
     end "Error when attempting to send message to Slack thread"
 end
 
