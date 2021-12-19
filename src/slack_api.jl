@@ -29,14 +29,13 @@ local_file(file; kw...) = local_file(basename(file), read(file); kw...)
 
 function local_file(name, object; dir=mktempdir())
     local_path = joinpath(dir, name)
-    if object isa Union{Vector{UInt8}, <:AbstractString}
+    if object isa Union{Vector{UInt8},<:AbstractString}
         write(local_path, object)
     else
         save(local_path, object)
     end
     return local_path
 end
-
 
 function upload_file(local_path::AbstractString; extra_args=String[])
     api = "https://slack.com/api/files.upload"
@@ -52,15 +51,16 @@ function upload_file(local_path::AbstractString; extra_args=String[])
     auth = "Authorization: Bearer $(token)"
 
     response = @maybecatch begin
-        cmd = `curl -s -F file=@$(local_path) $(extra_args) -H $auth $api`
-        JSON3.read(readchomp(cmd))
+        JSON3.read(@mock readchomp(`curl -s -F file=@$(local_path) $(extra_args) -H $auth $api`))
     end "Error when attempting to upload file to Slack"
 
     response === nothing && return nothing
 
     if haskey(response, :ok) === true && response[:ok] != true
         return @maybecatch begin
-            throw(SlackError(response.error))
+            err = haskey(response, :error) ? string(response.error) :
+                  "No error field returned"
+            throw(SlackError(err))
         end "Error reported by Slack API"
     end
 
@@ -93,7 +93,7 @@ function send_message(thread::SlackThread, text::AbstractString)
     auth = "Authorization: Bearer $(token)"
 
     response = @maybecatch begin
-        JSON3.read(readchomp(`curl -s -X POST -H $auth -H 'Content-type: application/json; charset=utf-8' --data $(data_str) $api`))
+        JSON3.read(@mock readchomp(`curl -s -X POST -H $auth -H 'Content-type: application/json; charset=utf-8' --data $(data_str) $api`))
     end "Error when attempting to send message to Slack thread"
 
     response === nothing && return nothing
@@ -101,7 +101,9 @@ function send_message(thread::SlackThread, text::AbstractString)
 
     if haskey(response, :ok) === true && response[:ok] === false
         return @maybecatch begin
-            throw(SlackError(response.error))
+            err = haskey(response, :error) ? string(response.error) :
+                  "No error field returned"
+            throw(SlackError(err))
         end "Error reported by Slack API"
     end
 

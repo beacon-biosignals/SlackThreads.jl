@@ -3,6 +3,7 @@ module SlackThreads
 using JSON3
 using StructTypes
 using FileIO
+using Mocking
 
 export SlackThread, slack_log_exception
 
