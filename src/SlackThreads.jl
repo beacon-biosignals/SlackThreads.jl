@@ -15,6 +15,7 @@ StructTypes.StructType(::Type{SlackThread}) = StructTypes.Struct()
 
 function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
     if channel === nothing
+        #TODO: Use Preferences.jl for default channel?
         throw(ArgumentError("TODO"))
     end
     return SlackThread(channel, nothing)
@@ -57,6 +58,12 @@ Slack choose how to display the object, and helps FileIO choose how to save the
 object. E.g. `"my_plot.png"` instead of `"my_plot"`.
 """
 function (thread::SlackThread)(text, uploads...)
+    if length(uploads) == 1
+        # special case: upload directly to thread
+        # TODO. For now, fallback to the general approach,
+        # which is fine but just leaves an `edited` note
+        # on the message.
+    end
     for item in uploads
         r = upload(item)
         text *= format_slack_link(r.file.permalink, " ")
@@ -95,10 +102,11 @@ function slack_message(thread::SlackThread, text::AbstractString)
     catch e
         @error "Error when attempting to send message to Slack thread" exception = (e,
                                                                                     catch_backtrace())
+        e
     end
     @debug "Slack responded" response
 
-    if thread.ts === nothing
+    if thread.ts === nothing && hasproperty(response, :ts)
         thread.ts = response.ts
     end
     return response
