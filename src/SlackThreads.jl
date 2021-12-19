@@ -20,7 +20,7 @@ function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
     return SlackThread(channel, nothing)
 end
 
-function upload(item::Pair{<:AbstractString, <:Any})
+function upload(item::Pair{<:AbstractString,<:Any})
     name, obj = item
     return upload(name, obj)
 end
@@ -43,7 +43,7 @@ end
 
 Each item in `uploads` may be:
 
-* a pair of the form `name => object`,
+* a pair of the form `name_with_extension => object`,
 * or a path to a file
 
 Valid `object`s are:
@@ -51,6 +51,10 @@ Valid `object`s are:
 * a vector of bytes (`Vector{UInt8}`)
 * a string
 * an object supporting `FileIO.save`
+
+Note when using the pair syntax, including a file extension in the name helps
+Slack choose how to display the object, and helps FileIO choose how to save the
+object. E.g. `"my_plot.png"` instead of `"my_plot"`.
 """
 function (thread::SlackThread)(text, uploads...)
     for item in uploads
@@ -146,7 +150,7 @@ function upload_bytes(name, bytes::Vector{UInt8})
     mktempdir() do dir
         local_path = joinpath(dir, name)
         write(local_path, bytes)
-        upload_file(local_path)
+        return upload_file(local_path)
     end
 end
 
@@ -166,11 +170,11 @@ function upload_file(local_path::AbstractString)
     auth = "Authorization: Bearer $(token)"
 
     response = return try
-            JSON3.read(readchomp(`curl -s -F file=@$(local_path) -H $auth $api`))
-        catch e
-            @error "Error when attempting to send image to Slack thread" exception = (e,
-                                                                                      catch_backtrace())
-        end
+        JSON3.read(readchomp(`curl -s -F file=@$(local_path) -H $auth $api`))
+    catch e
+        @error "Error when attempting to send image to Slack thread" exception = (e,
+                                                                                  catch_backtrace())
+    end
     @debug "Slack responded" response
     return response
 end
@@ -190,11 +194,11 @@ function format_slack_link(uri, msg=nothing)
     end
 end
 
-const INTERRUPT_TEXT =  """
-                        `InterruptException` recieved.
+const INTERRUPT_TEXT = """
+                       `InterruptException` recieved.
 
-                        Probably you know about this already.
-                        """
+                       Probably you know about this already.
+                       """
 
 exception_text(exception, backtrace) = """
             :alert: Error occured! :alert:
