@@ -137,6 +137,8 @@ function upload_file(local_path::AbstractString)
 
     response = return try
         JSON3.read(readchomp(`curl -s -F file=@$(local_path) -H $auth $api`))
+        # directly to thread:
+        # JSON3.read(readchomp(`curl -s -F file=@$(local_path) -F "initial_comment=$(comment)" -F channels=$(thread.channel) -F thread_ts=$(thread.ts) -H $auth $api`))
     catch e
         @error "Error when attempting to send image to Slack thread" exception = (e,
                                                                                   catch_backtrace())
@@ -174,48 +176,5 @@ function slack_log_exception(exception, backtrace; thread, interrupt_text=INTERR
     slack_message(thread, msg)
     return nothing
 end
-
-# TODO: extract code for uploading directly to thread
-#
-# """
-#     slack_image(thread::SlackThread, bytes::Vector{UInt8}; comment="Test image.")
-
-# Sends an image to a Slack thread. If no thread exists, it creates one and
-# stores it in `thread` so future messages will go to that thread.
-
-# If the environmental variable `SLACK_TOKEN` is not set, then no message can be sent;
-# in that case, a `@warn` logging statement is issued, but no exception is reported.
-# """
-# function slack_image(thread::SlackThread, bytes::Vector{UInt8}, name="image";
-#                      comment="Test image.")
-#     api = "https://slack.com/api/files.upload"
-
-#     token = get(ENV, "SLACK_TOKEN", nothing)
-#     if token === nothing
-#         @warn "No Slack token provided; image not sent." comment api name
-#         return nothing
-#     else
-#         @debug "Sending slack image" comment api name
-#     end
-
-#     auth = "Authorization: Bearer $(token)"
-
-#     response = mktempdir() do dir
-#         local_path = joinpath(dir, name)
-#         write(local_path, bytes)
-#         return try
-#             JSON3.read(readchomp(`curl -s -F file=@$(local_path) -F "initial_comment=$(comment)" -F channels=$(thread.channel) -F thread_ts=$(thread.ts) -H $auth $api`))
-#         catch e
-#             @error "Error when attempting to send image to Slack thread" exception = (e,
-#                                                                                       catch_backtrace())
-#         end
-#     end
-#     @debug "Slack responded" response
-
-#     if thread.ts === nothing
-#         thread.ts = response.ts
-#     end
-#     return response
-# end
 
 end # module
