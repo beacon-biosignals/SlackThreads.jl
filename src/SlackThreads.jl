@@ -41,7 +41,7 @@ end
     SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
 
 Constructs a `SlackThread`. A channel should be specified by it's ID
-(a number like `C01DN7T7WPQ` at the bottom of the "About" section of the channel).
+(a number like `C1H9RESGL` at the bottom of the "About" section of the channel).
 """
 function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
     thread = @maybecatch begin

@@ -5,6 +5,18 @@
 
 Provides a simple way to update a running Slack thread with text and attachments (files, images, etc).
 
+## Requirements
+
+This package needs a Slack OAuth token associated to a Slack app with the permissions `chat:write` and `files:write` (only needed for uploading files/images). You can make an app at <https://api.slack.com/apps>. Then install it to a workplace and add the permissions, and get an "Bot User OAuth Token". Set this as the environmental variable `SLACK_TOKEN`. You can do this in a running Julia session via
+
+```julia
+ENV["SLACK_TOKEN"] = read(Base.getpass("Slack token"), String)
+```
+
+and pasting it in. You will need to do this every session, or set the variable elsewhere (e.g. in a shell startup script, CI secret, Kubernetes secret, etc.)
+
+One also needs to specify a Slack channel to create threads in. You will likely need to invite your bot app into that channel (an easy way is to ping them and then click invite to channel). Once you have a channel for which your bot app has access, get the channel ID (a value like `C1H9RESGL` which you can find at the bottom of the "About" section of a channel). You can pass this to the `SlackThread` constructor or set an environmental variable `SLACK_CHANNEL`.
+
 ## Usage
 
 The main object of interest is a `SlackThread`, constructed by `thread = SlackThread()` (one may pass a `channel` and the default is `ENV["SLACK_CHANNEL"]`).
