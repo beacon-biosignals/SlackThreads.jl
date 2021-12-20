@@ -24,7 +24,7 @@ end
 function JET_tests()
     @testset "JET with args $args" for args in [("hi",), ("hi", "str" => "hello"),
                                                 ("hi", "str.txt" => "hello", "a" => "b")]
-        thread = SlackThread()
+        thread = withenv(() -> SlackThread(), "SLACK_CHANNEL"=>"hi")
         @test_call target_modules = (SlackThreads,) thread(args...)
         @test_call target_modules = (SlackThreads,) mode = :sound broken = true thread(args...)
     end
