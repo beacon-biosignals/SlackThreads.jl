@@ -41,8 +41,8 @@ end
 """
     SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
 
-Constructs a `SlackThread`. A channel should be specified by it's ID
-(a number like `C1H9RESGL` at the bottom of the "About" section of the channel).
+Constructs a `SlackThread`. A channel should be specified by it's ID (a number
+like `C1H9RESGL` at the bottom of the "About" section of the channel).
 """
 function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
     thread = @maybecatch begin
@@ -65,11 +65,28 @@ function format_slack_link(uri, msg=nothing)
 end
 
 """
-    (thread::SlackThread)(text, uploads...)
+    (thread::SlackThread)(text::AbstractString, uploads...)
+
+Sends a message to the Slack thread with the contents `text`. If this is the
+first message sent by `thread`, this starts a new thread (in `thread.channel`),
+otherwise it updates the existing thread.
+
+You can also include plots, images, and files by passing file paths or lists of
+pairs as `uploads`.
+
+Returns:
+
+* If the request is successful, returns Slack's response for the message as a
+  `JSON3.Object`. If more than one upload is present, the response will be for a
+  text-only request, since the file uploads will be processed separately (using
+  the strategy from https://stackoverflow.com/a/63391026/12486544).
+* If the request is not successful, returns `nothing`.
+
+## Uploads
 
 Each item in `uploads` may be:
 
-* a pair of the form `name_with_extension::AbstractString => object`,
+* a `Pair` of the form `name_with_extension::AbstractString => object`,
 * or a path to a file (i.e. anything that supports `read` and `basename`)
 
 Valid `object`s are:
@@ -78,11 +95,12 @@ Valid `object`s are:
 * a string
 * an object supporting `FileIO.save`
 
-Note when using the pair syntax, including a file extension in the name helps
-Slack choose how to display the object, and helps FileIO choose how to save the
-object. E.g. `"my_plot.png"` instead of `"my_plot"`.
+!!! note
+    When using the pair syntax, including a file extension in the name
+    helps Slack choose how to display the object, and helps FileIO choose how to
+    save the object. E.g. `"my_plot.png"` instead of `"my_plot"`.
 
-Logging:
+## Logging
 
 * Emits `@debug` logs when sending requests and recieving responses from the Slack API.
 * Emits `@warn` logs with the contents of requests to the Slack API when the channel or token is not configured correctly (in lieu of sending a request)
