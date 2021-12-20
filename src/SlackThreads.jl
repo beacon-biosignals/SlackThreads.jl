@@ -9,7 +9,7 @@ export SlackThread, slack_log_exception
 
 mutable struct SlackThread
     channel::Union{String,Nothing}
-    ts::Union{String,Nothing}
+    ts::Union{String,Nothing} # In Slack terminology, `ts_thread`: the ID of another un-threaded message to reply to (https://api.slack.com/reference/messaging/payload)
 end
 
 function Base.copyto!(thread::SlackThread, obj)
@@ -54,7 +54,7 @@ function SlackThread(channel=get(ENV, "SLACK_CHANNEL", nothing))
     thread = @maybecatch begin
         if channel === nothing
             #TODO: Use Preferences.jl for default channel?
-            @warn "Channel not passed, nor `SLACK_CHANNEL` environmental variable set, so will only emit logging statements."
+            @warn "`channel` not passed, nor `SLACK_CHANNEL` environmental variable set, so will only emit logging statements."
         end
         SlackThread(channel, nothing)
     end "Error when constructing `SlackThread`"
