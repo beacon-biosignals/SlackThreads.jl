@@ -60,14 +60,15 @@ function tests_without_errors()
         end
 
         @testset "copyto!" begin
-            copyto!(thread, (; channel="c", ts="123"))
-            @test thread.channel == "c"
-            @test thread.ts == "123"
+            t = SlackThread()
+            copyto!(t, (; channel="c", ts="123"))
+            @test t.channel == "c"
+            @test t.ts == "123"
 
             # Test we can roundtrip through JSON,
             # then update an existing SlackThread with `copyto!`
             # (since this can be a useful thing to do)
-            json = JSON3.write(thread)
+            json = JSON3.write(t)
             new_thread = SlackThread()
             copyto!(new_thread, JSON3.read(json))
             @test new_thread.channel == "c"
