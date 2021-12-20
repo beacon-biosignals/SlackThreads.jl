@@ -3,8 +3,18 @@ on:
   push:
     branches:
       - main
-    tags: '*'
+    tags: ["*"]
+    paths:
+      - "src/**"
+      - "test/**"
+      - "Project.toml"
+      - ".github/workflows/CI.yml"
   pull_request:
+    paths:
+      - "src/**"
+      - "test/**"
+      - "Project.toml"
+      - ".github/workflows/CI.yml"
 concurrency:
   # Skip intermediate builds: always.
   # Cancel intermediate builds: only if it is a pull request build.
@@ -18,9 +28,9 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          - '1.6'
-          - '1.7'
-          - 'nightly'
+          - "1.6"
+          - "1.7"
+          - "nightly"
         os:
           - ubuntu-latest
         arch:
