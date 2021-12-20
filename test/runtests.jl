@@ -5,6 +5,7 @@ using Mocking
 using JSON3
 using CairoMakie
 using Logging
+using Aqua
 
 Mocking.activate()
 
