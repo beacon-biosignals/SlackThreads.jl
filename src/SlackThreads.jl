@@ -12,6 +12,12 @@ mutable struct SlackThread
     ts::Union{String,Nothing}
 end
 
+function Base.copyto!(thread::SlackThread, obj)
+    thread.channel = obj.channel
+    thread.ts = obj.ts
+    return thread
+end
+
 StructTypes.StructType(::Type{SlackThread}) = StructTypes.Struct()
 
 const CATCH_EXCEPTIONS = Ref(true)

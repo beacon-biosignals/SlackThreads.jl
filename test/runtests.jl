@@ -59,6 +59,12 @@ function tests_without_errors()
             @test thread.ts == "abc"
         end
 
+        @testset "copyto!" begin
+            copyto!(thread, (; channel="c", ts="123"))
+            @test thread.channel == "c"
+            @test thread.ts == "123"
+        end    
+
         hi_patch = readchomp_input_patch() do cmd
             # Just a reference test; we don't really want to hit up the Slack API
             # from CI here, so let's just check the curl query is one that works
