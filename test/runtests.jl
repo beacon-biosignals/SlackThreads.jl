@@ -63,7 +63,16 @@ function tests_without_errors()
             copyto!(thread, (; channel="c", ts="123"))
             @test thread.channel == "c"
             @test thread.ts == "123"
-        end    
+
+            # Test we can roundtrip through JSON,
+            # then update an existing SlackThread with `copyto!`
+            # (since this can be a useful thing to do)
+            json = JSON3.write(thread)
+            new_thread = SlackThread()
+            copyto!(new_thread, JSON3.read(json))
+            @test new_thread.channel == "c"
+            @test new_thread.ts == "123"
+        end
 
         hi_patch = readchomp_input_patch() do cmd
             # Just a reference test; we don't really want to hit up the Slack API
