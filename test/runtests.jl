@@ -138,117 +138,127 @@ function tests_without_errors()
     end
 end
 
-# Now we test with `SlackThreads.CATCH_EXCEPTIONS[] = false`, i.e.
-# with throwing exceptions. This option exists only for testing, really.
-# The point is we don't want our tests to "pass" while logging exceptions
-# all over the place. If we disable our special "log exceptions instead of throwing"
-# code, do we still pass our tests?
-@testset "With exceptions" begin
-    status = SlackThreads.CATCH_EXCEPTIONS[]
-    SlackThreads.CATCH_EXCEPTIONS[] = false
-    try
-        JET_tests()
-
-        @testset "Non-throwing tests" begin
-            tests_without_errors()
-        end
-
-        @testset "`SlackThread` constructor exceptions" begin
-            @test_throws MethodError SlackThread(1)
-        end
-
-        @testset "`thread` message exceptions" begin
-            withenv("SLACK_TOKEN" => "hi", "SLACK_CHANNEL" => "bye") do
-                thread = SlackThread()
-                thread.ts = "abc"
-
-                Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "x"))) do
-                    @test thread("bye").ok == true
-                    # `ts` still doesn't change
-                    @test thread.ts == "abc"
-
-                    @test thread("hi again", "file.txt" => "this is a string").ok == true
-
-                    # We didn't pass a `file` back in our reply
-                    @test_throws KeyError thread("hi again",
-                                                 "file.txt" => "this is a string",
-                                                 "file2.txt" => "abc")
-                end
-
-                Mocking.apply(readchomp_reply_patch(Dict("ok" => false, "error" => "no"))) do
-                    @test_throws SlackThreads.SlackError("no") thread("bye")
-                end
-
-                Mocking.apply(readchomp_reply_patch(Dict("ok" => false))) do
-                    @test_throws SlackThreads.SlackError("No error field returned") thread("bye")
-                end
-            end
-        end
-
-    finally
-        # reset
-        SlackThreads.CATCH_EXCEPTIONS[] = status
+@testset "SlackThreads" begin
+    @testset "Aqua" begin
+        Aqua.test_all(SlackThreads; ambiguities=false)
     end
-end
 
-# Here, we check that our special "exceptions as logs" machinery works
-# correctly and emits logs.
-@testset "Exceptions as logs" begin
-    status = SlackThreads.CATCH_EXCEPTIONS[]
-    SlackThreads.CATCH_EXCEPTIONS[] = true
-    try
-        @testset "Non-throwing tests" begin
-            tests_without_errors()
-        end
+    # Now we test with `SlackThreads.CATCH_EXCEPTIONS[] = false`, i.e.
+    # with throwing exceptions. This option exists only for testing, really.
+    # The point is we don't want our tests to "pass" while logging exceptions
+    # all over the place. If we disable our special "log exceptions instead of throwing"
+    # code, do we still pass our tests?
+    @testset "With exceptions" begin
+        status = SlackThreads.CATCH_EXCEPTIONS[]
+        SlackThreads.CATCH_EXCEPTIONS[] = false
+        try
+            JET_tests()
 
-        @testset "`SlackThread` constructor exceptions" begin
-            msg = "Error when constructing `SlackThread`"
-            thread = (@test_logs (:error, msg) SlackThread(1))
-            @test thread.ts === nothing
-            @test thread.channel === nothing
-        end
+            @testset "Non-throwing tests" begin
+                tests_without_errors()
+            end
 
-        @testset "`thread` message exceptions" begin
-            withenv("SLACK_TOKEN" => "hi", "SLACK_CHANNEL" => "bye") do
-                thread = SlackThread()
-                thread.ts = "abc"
+            @testset "`SlackThread` constructor exceptions" begin
+                @test_throws MethodError SlackThread(1)
+            end
 
-                Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "x"))) do
-                    @test thread("bye").ok == true
-                    # `ts` still doesn't change
-                    @test thread.ts == "abc"
+            @testset "`thread` message exceptions" begin
+                withenv("SLACK_TOKEN" => "hi", "SLACK_CHANNEL" => "bye") do
+                    thread = SlackThread()
+                    thread.ts = "abc"
 
-                    @test thread("hi again", "file.txt" => "this is a string").ok == true
+                    Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "x"))) do
+                        @test thread("bye").ok == true
+                        # `ts` still doesn't change
+                        @test thread.ts == "abc"
 
-                    # We didn't pass a `file` back in our reply
-                    msg = "Error when attempting to send message to Slack thread"
-                    result = @test_logs (:error, msg) thread("hi again",
-                                                             "file.txt" => "this is a string",
-                                                             "file2.txt" => "abc")
-                    @test result === nothing
-                end
+                        @test thread("hi again", "file.txt" => "this is a string").ok ==
+                              true
 
-                Mocking.apply(readchomp_reply_patch(Dict("ok" => false, "error" => "no"))) do
-                    @test (@test_logs (:error, r"Slack API") thread("bye")) === nothing
-                end
+                        # We didn't pass a `file` back in our reply
+                        @test_throws KeyError thread("hi again",
+                                                     "file.txt" => "this is a string",
+                                                     "file2.txt" => "abc")
+                    end
 
-                Mocking.apply(readchomp_reply_patch(Dict("ok" => false))) do
-                    @test (@test_logs (:error, r"Slack API") thread("bye")) === nothing
-                end
+                    Mocking.apply(readchomp_reply_patch(Dict("ok" => false,
+                                                             "error" => "no"))) do
+                        @test_throws SlackThreads.SlackError("no") thread("bye")
+                    end
 
-                count = Ref(0)
-                Mocking.apply(readchomp_reply_patch(Dict("ok" => false), count)) do
-                    @test_logs (:error, "Error reported by Slack API") begin
-                        @test_throws DomainError slack_log_exception(thread) do
-                            return sqrt(-1)
-                        end
+                    Mocking.apply(readchomp_reply_patch(Dict("ok" => false))) do
+                        @test_throws SlackThreads.SlackError("No error field returned") thread("bye")
                     end
                 end
-                @test count[] == 1
             end
+
+        finally
+            # reset
+            SlackThreads.CATCH_EXCEPTIONS[] = status
         end
-    finally
-        # reset
-        SlackThreads.CATCH_EXCEPTIONS[] = status
+    end
+
+    # Here, we check that our special "exceptions as logs" machinery works
+    # correctly and emits logs.
+    @testset "Exceptions as logs" begin
+        status = SlackThreads.CATCH_EXCEPTIONS[]
+        SlackThreads.CATCH_EXCEPTIONS[] = true
+        try
+            @testset "Non-throwing tests" begin
+                tests_without_errors()
+            end
+
+            @testset "`SlackThread` constructor exceptions" begin
+                msg = "Error when constructing `SlackThread`"
+                thread = (@test_logs (:error, msg) SlackThread(1))
+                @test thread.ts === nothing
+                @test thread.channel === nothing
+            end
+
+            @testset "`thread` message exceptions" begin
+                withenv("SLACK_TOKEN" => "hi", "SLACK_CHANNEL" => "bye") do
+                    thread = SlackThread()
+                    thread.ts = "abc"
+
+                    Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "x"))) do
+                        @test thread("bye").ok == true
+                        # `ts` still doesn't change
+                        @test thread.ts == "abc"
+
+                        @test thread("hi again", "file.txt" => "this is a string").ok ==
+                              true
+
+                        # We didn't pass a `file` back in our reply
+                        msg = "Error when attempting to send message to Slack thread"
+                        result = @test_logs (:error, msg) thread("hi again",
+                                                                 "file.txt" => "this is a string",
+                                                                 "file2.txt" => "abc")
+                        @test result === nothing
+                    end
+
+                    Mocking.apply(readchomp_reply_patch(Dict("ok" => false,
+                                                             "error" => "no"))) do
+                        @test (@test_logs (:error, r"Slack API") thread("bye")) === nothing
+                    end
+
+                    Mocking.apply(readchomp_reply_patch(Dict("ok" => false))) do
+                        @test (@test_logs (:error, r"Slack API") thread("bye")) === nothing
+                    end
+
+                    count = Ref(0)
+                    Mocking.apply(readchomp_reply_patch(Dict("ok" => false), count)) do
+                        @test_logs (:error, "Error reported by Slack API") begin
+                            @test_throws DomainError slack_log_exception(thread) do
+                                return sqrt(-1)
+                            end
+                        end
+                    end
+                    @test count[] == 1
+                end
+            end
+        finally
+            # reset
+            SlackThreads.CATCH_EXCEPTIONS[] = status
+        end
     end
 end

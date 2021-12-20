@@ -10,6 +10,7 @@ Mocking = "78c3b35d-d492-501b-9361-3d52fe80e533"
 StructTypes = "856f2bd8-1eba-4b0a-8007-ebc267875bd4"
 
 [compat]
+Aqua = "0.5"
 FileIO = "1.11"
 JSON3 = "1.9"
 Mocking = "0.7"
@@ -17,10 +18,11 @@ StructTypes = "1.8"
 julia = "1.6"
 
 [extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "CairoMakie", "JET", "Logging"]
+test = ["Aqua", "CairoMakie", "JET", "Logging", "Test"]
