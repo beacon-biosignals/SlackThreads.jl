@@ -3,7 +3,13 @@ using Test
 using JET
 using Mocking
 using JSON3
+using CairoMakie
+using Logging
+
 Mocking.activate()
+
+const OK_REPLY = Dict("ok" => true)
+const FILE_OK_REPLY = Dict("ok" => true, "file" => Dict("permalink" => "LINK"))
 
 function readchomp_reply_patch(reply, count=Ref(0))
     p = @patch function Base.readchomp(cmd)
@@ -16,7 +22,7 @@ end
 function readchomp_input_patch(check)
     p = @patch function Base.readchomp(cmd)
         check(cmd)
-        return JSON3.write(Dict("ok" => true, "file" => Dict("permalink" => "LINK")))
+        return JSON3.write(FILE_OK_REPLY)
     end
     return p
 end
@@ -24,7 +30,7 @@ end
 function JET_tests()
     @testset "JET with args $args" for args in [("hi",), ("hi", "str" => "hello"),
                                                 ("hi", "str.txt" => "hello", "a" => "b")]
-        thread = withenv(() -> SlackThread(), "SLACK_CHANNEL"=>"hi")
+        thread = withenv(() -> SlackThread(), "SLACK_CHANNEL" => "hi")
         @test_call target_modules = (SlackThreads,) thread(args...)
         @test_call target_modules = (SlackThreads,) mode = :sound broken = true thread(args...)
     end
@@ -63,7 +69,7 @@ function tests_without_errors()
         end
 
         count = Ref(0)
-        Mocking.apply(readchomp_reply_patch(Dict("ok" => true), count)) do
+        Mocking.apply(readchomp_reply_patch(OK_REPLY, count)) do
             @test thread("bye").ok == true
             # `ts` doesn't change
             @test thread.ts == "abc"
@@ -71,9 +77,7 @@ function tests_without_errors()
         @test count[] == 1
 
         count = Ref(0)
-        Mocking.apply(readchomp_reply_patch(Dict("ok" => true,
-                                                 "file" => Dict("permalink" => "LINK")),
-                                            count)) do
+        Mocking.apply(readchomp_reply_patch(FILE_OK_REPLY, count)) do
             @test thread("hi again", "file.txt" => "this is a string",
                          "file2.txt" => "abc").ok == true
         end
@@ -95,7 +99,7 @@ function tests_without_errors()
         end
 
         count = Ref(0)
-        Mocking.apply(readchomp_reply_patch(Dict("ok" => true), count)) do
+        Mocking.apply(readchomp_reply_patch(OK_REPLY, count)) do
             @test_throws DomainError slack_log_exception(thread) do
                 return sqrt(-1)
             end
@@ -103,7 +107,7 @@ function tests_without_errors()
         @test count[] == 1
 
         count = Ref(0)
-        Mocking.apply(readchomp_reply_patch(Dict("ok" => true), count)) do
+        Mocking.apply(readchomp_reply_patch(OK_REPLY, count)) do
             try
                 sqrt(-1)
             catch e
@@ -111,6 +115,20 @@ function tests_without_errors()
             end
         end
         @test count[] == 1
+
+        # Suppress annoying "No strict ticks found" logging messages
+        plt1 = with_logger(NullLogger()) do
+            return scatter([1.0f0, 2.0f0, 3.0f0], [0.5f0, 4.0f0, 6.0f0])
+        end
+        plt2 = with_logger(NullLogger()) do
+            return scatter(1:10, 1:10)
+        end
+        Mocking.apply(readchomp_reply_patch(FILE_OK_REPLY)) do
+            @test thread("hi", "plot.png" => plt1).ok == true
+            @test thread.ts == "abc"
+
+            @test thread("hi", "plot.png" => plt1, "plot2.png" => plt2).ok == true
+        end
     end
 end
 
