@@ -21,13 +21,13 @@ const CATCH_EXCEPTIONS = Ref(true)
 # be sure we are catching all exceptions.
 # We wrap all public API methods in this, which should make it very difficult to throw
 # an exception.
-macro maybecatch(expr, exception_string)
+macro maybecatch(expr, log_str)
     quote
         if CATCH_EXCEPTIONS[]
             try
                 $(esc(expr))
             catch e
-                @error $(exception_string) exception = (e, catch_backtrace())
+                @error $(log_str) exception = (e, catch_backtrace())
                 nothing
             end
         else
@@ -81,6 +81,12 @@ Valid `object`s are:
 Note when using the pair syntax, including a file extension in the name helps
 Slack choose how to display the object, and helps FileIO choose how to save the
 object. E.g. `"my_plot.png"` instead of `"my_plot"`.
+
+Logging:
+
+* Emits `@debug` logs when sending requests and recieving responses from the Slack API.
+* Emits `@warn` logs with the contents of requests to the Slack API when the channel or token is not configured correctly (in lieu of sending a request)
+* Emits `@error` logs when an exception is encountered or Slack returns an error response.
 """
 function (thread::SlackThread)(text::AbstractString, uploads...)
     return @maybecatch begin
@@ -95,7 +101,8 @@ function (thread::SlackThread)(text::AbstractString, uploads...)
         mktempdir() do dir
             if length(uploads) == 1
                 # special case: upload directly to thread
-                extra_args = ["-F", "initial_comment=$(text)", "-F", "channels=$(thread.channel)"]
+                extra_args = ["-F", "initial_comment=$(text)", "-F",
+                              "channels=$(thread.channel)"]
                 if !isnothing(thread.ts)
                     push!(extra_args, "-F", "thread_ts=$(thread.ts)")
                 end
@@ -110,7 +117,6 @@ function (thread::SlackThread)(text::AbstractString, uploads...)
 
             return send_message(thread, text)
         end
-
     end "Error when attempting to send message to Slack thread"
 end
 
