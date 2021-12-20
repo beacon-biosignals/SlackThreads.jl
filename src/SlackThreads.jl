@@ -123,13 +123,15 @@ function (thread::SlackThread)(text::AbstractString, uploads...)
             return send_message(thread, text)
         end
         mktempdir() do dir
-            if length(uploads) == 1
+            if length(uploads) == 1 && thread.ts !== nothing
                 # special case: upload directly to thread
+                # cannot do this if we don't have a `ts` already because
+                # the response doesn't give us a `ts` to use.
+                # i.e. we can post the message but don't have the `ts`
+                # to thread from it. So in that case, we fallback
+                # to the general case.
                 extra_args = ["-F", "initial_comment=$(text)", "-F",
-                              "channels=$(thread.channel)"]
-                if !isnothing(thread.ts)
-                    push!(extra_args, "-F", "thread_ts=$(thread.ts)")
-                end
+                              "channels=$(thread.channel)", "-F", "thread_ts=$(thread.ts)"]
                 return upload_file(local_file(only(uploads); dir); extra_args)
             end
 
