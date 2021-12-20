@@ -92,6 +92,19 @@ function tests_without_errors()
         end
 
         count = Ref(0)
+        Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "123",
+                                                 "file" => Dict("permalink" => "LINK")),
+                                            count)) do
+            t = SlackThread()
+            @test t("bye", "file.txt" => "hi").ok == true
+            # `ts` is correctly set
+            @test t.ts == "123"
+        end
+        # we need the general fallback when doing 1 attachment and starting a thread,
+        # therefore we get 2 API calls
+        @test count[] == 2
+
+        count = Ref(0)
         Mocking.apply(readchomp_reply_patch(OK_REPLY, count)) do
             @test thread("bye").ok == true
             # `ts` doesn't change
