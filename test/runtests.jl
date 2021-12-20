@@ -47,7 +47,7 @@ end
 # since they don't involve throwing exceptions.
 function tests_without_errors()
     withenv("SLACK_TOKEN" => "hi", "SLACK_CHANNEL" => nothing) do
-        thread = (@test_logs (:warn, r"Channel") SlackThread())
+        thread = (@test_logs (:warn, r"channel") SlackThread())
         @test thread.ts === nothing
         @test thread.channel === nothing
     end
