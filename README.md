@@ -1,7 +1,7 @@
 # SlackThreads
 
-[![Build Status](https://github.com/ericphanson/SlackThreads.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/ericphanson/SlackThreads.jl/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/ericphanson/SlackThreads.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/ericphanson/SlackThreads.jl)
+[![Build Status](https://github.com/beacon-biosignals/SlackThreads.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/beacon-biosignals/SlackThreads.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![codecov](https://codecov.io/gh/beacon-biosignals/SlackThreads.jl/branch/main/graph/badge.svg?token=cgq9UTxUGQ)](https://codecov.io/gh/beacon-biosignals/SlackThreads.jl)
 
 Provides a simple way to update a running Slack thread with text and attachments (files, images, etc).
 
