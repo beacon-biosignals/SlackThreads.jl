@@ -31,8 +31,14 @@ function JET_tests()
     @testset "JET with args $args" for args in [("hi",), ("hi", "str" => "hello"),
                                                 ("hi", "str.txt" => "hello", "a" => "b")]
         thread = withenv(() -> SlackThread(), "SLACK_CHANNEL" => "hi")
-        @test_call target_modules = (SlackThreads,) thread(args...)
-        @test_call target_modules = (SlackThreads,) mode = :sound broken = true thread(args...)
+
+        # `@test_call` needs JET v0.5, which needs Julia 1.7
+        # We need `@static` here since macroexpansion happens before runtime,
+        # i.e. a runtime check is not enough.
+        @static if VERSION >= v"1.7"
+            @test_call target_modules = (SlackThreads,) thread(args...)
+            @test_call target_modules = (SlackThreads,) mode = :sound broken = true thread(args...)
+        end
     end
 end
 
@@ -141,7 +147,7 @@ end
     status = SlackThreads.CATCH_EXCEPTIONS[]
     SlackThreads.CATCH_EXCEPTIONS[] = false
     try
-        VERSION >= v"1.7" && JET_tests()
+        JET_tests()
 
         @testset "Non-throwing tests" begin
             tests_without_errors()
