@@ -18,7 +18,11 @@ Set this as the environmental variable `SLACK_TOKEN`. You can do this in a
 running Julia session via
 
 ```julia
-ENV["SLACK_TOKEN"] = read(Base.getpass("Slack token"), String);
+ENV["SLACK_TOKEN"] = let buffer = Base.getpass("Slack token")
+    str = read(buffer, String)
+    Base.shred!(buffer)
+    str
+end;
 ```
 
 and pasting it in. You will need to do this every session, or set the variable
