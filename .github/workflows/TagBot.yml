@@ -6,10 +6,7 @@ on:
   workflow_dispatch:
 jobs:
   TagBot:
-    if: github.event_name == 'workflow_dispatch' || github.actor == 'JuliaTagBot' || github.actor == 'beacon-buddy'
+    if: github.event_name == 'workflow_dispatch' || github.actor == 'JuliaTagBot'
     runs-on: ubuntu-latest
     steps:
       - uses: JuliaRegistries/TagBot@v1
-        with:
-          token: ${{ secrets.BEACON_BUDDY_GH_TOKEN }}
-          registry: beacon-biosignals/BeaconRegistry
