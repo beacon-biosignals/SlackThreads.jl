@@ -135,18 +135,26 @@ function (thread::SlackThread)(text::AbstractString, uploads...)
                 return upload_file(local_file(only(uploads); dir); extra_args)
             end
 
+            texts = String[text]
+            
             for item in uploads
                 r = upload_file(local_file(item; dir))
                 r === nothing && continue
-                text *= format_slack_link(r.file.permalink, " ")
+                push!(texts, format_slack_link(r.file.permalink, " "))
             end
 
-            return send_message(thread, text)
+            messages = combine_texts(texts)
+            local r
+            for msg in messages
+                r = send_message(thread, msg)
+            end
+            return r # return last response
         end
     end "Error when attempting to send message to Slack thread"
 end
 
 include("slack_api.jl")
 include("slack_log_exception.jl")
+include("utilities.jl")
 
 end # module
