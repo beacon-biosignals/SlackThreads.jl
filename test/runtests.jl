@@ -174,14 +174,17 @@ end
     end
 
     @testset "Utilities" begin
-        count_message=(i,n) -> ""
-        messages = SlackThreads.combine_texts(["abcdef", "abc"]; max_length=1, count_message)
+        count_message = (i, n) -> ""
+        messages = SlackThreads.combine_texts(["abcdef", "abc"]; max_length=1,
+                                              count_message)
         @test messages == ["abcdef", "abc"] # 2 messages
 
-        messages = SlackThreads.combine_texts(["abcdef", "abc", "d"]; max_length=4, count_message)
+        messages = SlackThreads.combine_texts(["abcdef", "abc", "d"]; max_length=4,
+                                              count_message)
         @test messages == ["abcdef", "abcd"]  # can combine last two
 
-        messages = SlackThreads.combine_texts(["d", "abcdef", "abc"]; max_length=4, count_message)
+        messages = SlackThreads.combine_texts(["d", "abcdef", "abc"]; max_length=4,
+                                              count_message)
         @test messages == ["d", "abcdef", "abc"] # cannot combine anything
 
         vals = (x for x in ("d", "x", "abcdef", "abc")) # test iterator

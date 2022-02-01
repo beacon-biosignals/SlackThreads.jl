@@ -136,7 +136,6 @@ function (thread::SlackThread)(text::AbstractString, uploads...)
             end
 
             texts = String[text]
-            
             for item in uploads
                 r = upload_file(local_file(item; dir))
                 r === nothing && continue

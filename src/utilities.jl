@@ -3,7 +3,7 @@
 # longer than `max_length` , in which case it is passed on.
 #
 # The purpose of this is for nicely splitting long lists of attachments.
-function combine_texts(texts; max_length = 3800, count_message = (i, n) -> "\n\n[$i / $n]")
+function combine_texts(texts; max_length=3800, count_message=(i, n) -> "\n\n[$i / $n]")
     messages = String[]
     current_message = ""
     current_length = 0
@@ -32,6 +32,5 @@ function combine_texts(texts; max_length = 3800, count_message = (i, n) -> "\n\n
     for i in eachindex(messages)
         messages[i] *= count_message(i, n)
     end
-    
     return messages
 end
