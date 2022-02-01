@@ -91,6 +91,16 @@ function tests_without_errors()
             @test thread("hi").ok == true
         end
 
+        option_patch = readchomp_input_patch() do cmd
+            # Another reference test
+            @test cmd ==
+                  `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}' https://slack.com/api/chat.postMessage`
+        end
+
+        Mocking.apply(option_patch) do
+            @test thread("hi"; link_names=true).ok == true
+        end
+
         count = Ref(0)
         Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "123",
                                                  "file" => Dict("permalink" => "LINK")),

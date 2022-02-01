@@ -72,7 +72,8 @@ end
 
 """
     (thread::SlackThread)(text::AbstractString, uploads...;
-                          format_message_counts=format_message_counts)
+                          format_message_counts=format_message_counts,
+                          options...)
 
 Sends a message to the Slack thread with the contents `text`. If this is the
 first message sent by `thread`, this starts a new thread (in `thread.channel`),
@@ -119,9 +120,14 @@ If there are many attachments, the messages will be split into multiple messages
 [`SlackThreads.format_message_counts`](@ref) is used to format text to indicate when a message has been split.
 One may pass a function with the same signature to customize this text, or e.g. pass `(i, n) -> ""` to not
 display any text indicating that the messages have been split.
+
+## Options
+
+One may pass any optional arguments supported by [`chat.postMessage`](https://api.slack.com/methods/chat.postMessage#args),
+e.g. `link_names = true`, as keyword arguments.
 """
 function (thread::SlackThread)(text::AbstractString, uploads...;
-                               format_message_counts=format_message_counts)
+                               format_message_counts=format_message_counts, options...)
     return @maybecatch begin
         if thread.channel === nothing
             @warn "No Slack channel configured; message not sent." text uploads
@@ -129,16 +135,17 @@ function (thread::SlackThread)(text::AbstractString, uploads...;
         end
         if isempty(uploads)
             # send directly
-            return send_message(thread, text)
+            return send_message(thread, text; options...)
         end
         mktempdir() do dir
-            if length(uploads) == 1 && thread.ts !== nothing
+            if length(uploads) == 1 && thread.ts !== nothing && isempty(options)
                 # special case: upload directly to thread
                 # cannot do this if we don't have a `ts` already because
                 # the response doesn't give us a `ts` to use.
                 # i.e. we can post the message but don't have the `ts`
                 # to thread from it. So in that case, we fallback
-                # to the general case.
+                # to the general case. We also can't do this if the user has passed
+                # any options, since those are likely only valid for `chat.postMessage`.
                 extra_args = ["-F", "initial_comment=$(text)", "-F",
                               "channels=$(thread.channel)", "-F", "thread_ts=$(thread.ts)"]
                 return upload_file(local_file(only(uploads); dir); extra_args)
@@ -155,7 +162,7 @@ function (thread::SlackThread)(text::AbstractString, uploads...;
             messages = combine_texts(texts; format_message_counts)
             local r
             for msg in messages
-                r = send_message(thread, msg)
+                r = send_message(thread, msg; options...)
             end
             return r # return last response
         end

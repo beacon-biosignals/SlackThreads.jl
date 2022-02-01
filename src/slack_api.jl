@@ -72,8 +72,13 @@ end
 ##### Messages
 #####
 
-function send_message(thread::SlackThread, text::AbstractString)
-    data = Dict("channel" => thread.channel, "text" => text)
+function send_message(thread::SlackThread, text::AbstractString; options...)
+    data = Dict{String,Any}()
+    for (k, v) in pairs(options)
+        data[string(k)] = v
+    end
+    data["channel"] = thread.channel
+    data["text"] = text
     if thread.ts !== nothing
         data["thread_ts"] = thread.ts
     end
