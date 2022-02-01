@@ -174,31 +174,32 @@ end
     end
 
     @testset "Utilities" begin
-        count_message = (i, n) -> ""
+        format_message_counts = (i, n) -> ""
         messages = SlackThreads.combine_texts(["abcdef", "abc"]; max_length=1,
-                                              count_message)
+                                              format_message_counts)
         @test messages == ["abcdef", "abc"] # 2 messages
 
         messages = SlackThreads.combine_texts(["abcdef", "abc", "d"]; max_length=4,
-                                              count_message)
+                                              format_message_counts)
         @test messages == ["abcdef", "abcd"]  # can combine last two
 
         messages = SlackThreads.combine_texts(["d", "abcdef", "abc"]; max_length=4,
-                                              count_message)
+                                              format_message_counts)
         @test messages == ["d", "abcdef", "abc"] # cannot combine anything
 
         vals = (x for x in ("d", "x", "abcdef", "abc")) # test iterator
-        messages = SlackThreads.combine_texts(vals; max_length=4, count_message)
+        messages = SlackThreads.combine_texts(vals; max_length=4, format_message_counts)
         @test messages == ["dx", "abcdef", "abc"] # can combine first two
 
         # Edge case: 1 message
         for max_length in (0, 1, 5)
-            messages = SlackThreads.combine_texts(["a"]; max_length, count_message)
+            messages = SlackThreads.combine_texts(["a"]; max_length, format_message_counts)
             @test messages == ["a"]
         end
 
-        # Test `count_message`
-        messages = SlackThreads.combine_texts(["a"]; count_message=(i, n) -> "$i/$n")
+        # Test `format_message_counts`
+        messages = SlackThreads.combine_texts(["a"];
+                                              format_message_counts=(i, n) -> "$i/$n")
         @test messages == ["a1/1"]
     end
 

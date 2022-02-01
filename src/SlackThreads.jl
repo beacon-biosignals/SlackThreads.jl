@@ -71,7 +71,8 @@ function format_slack_link(uri, msg=nothing)
 end
 
 """
-    (thread::SlackThread)(text::AbstractString, uploads...)
+    (thread::SlackThread)(text::AbstractString, uploads...;
+                          format_message_counts=format_message_counts)
 
 Sends a message to the Slack thread with the contents `text`. If this is the
 first message sent by `thread`, this starts a new thread (in `thread.channel`),
@@ -111,8 +112,16 @@ Valid `object`s are:
 * Emits `@debug` logs when sending requests and recieving responses from the Slack API.
 * Emits `@warn` logs with the contents of requests to the Slack API when the channel or token is not configured correctly (in lieu of sending a request)
 * Emits `@error` logs when an exception is encountered or Slack returns an error response.
+
+## Message splitting
+
+If there are many attachments, the messages will be split into multiple messages. By default,
+[`SlackThreads.format_message_counts`](@ref) is used to format text to indicate when a message has been split.
+One may pass a function with the same signature to customize this text, or e.g. pass `(i, n) -> ""` to not
+display any text indicating that the messages have been split.
 """
-function (thread::SlackThread)(text::AbstractString, uploads...)
+function (thread::SlackThread)(text::AbstractString, uploads...;
+                               format_message_counts=format_message_counts)
     return @maybecatch begin
         if thread.channel === nothing
             @warn "No Slack channel configured; message not sent." text uploads
@@ -136,13 +145,14 @@ function (thread::SlackThread)(text::AbstractString, uploads...)
             end
 
             texts = String[text]
+
             for item in uploads
                 r = upload_file(local_file(item; dir))
                 r === nothing && continue
                 push!(texts, format_slack_link(r.file.permalink, " "))
             end
 
-            messages = combine_texts(texts)
+            messages = combine_texts(texts; format_message_counts)
             local r
             for msg in messages
                 r = send_message(thread, msg)
