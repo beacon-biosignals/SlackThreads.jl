@@ -72,7 +72,7 @@ end
 
 """
     (thread::SlackThread)(text::AbstractString, uploads...;
-                          format_message_counts=format_message_counts)
+                          combine_texts=combine_texts)
 
 Sends a message to the Slack thread with the contents `text`. If this is the
 first message sent by `thread`, this starts a new thread (in `thread.channel`),
@@ -115,13 +115,14 @@ Valid `object`s are:
 
 ## Message splitting
 
-If there are many attachments, the messages will be split into multiple messages. By default,
-[`SlackThreads.format_message_counts`](@ref) is used to format text to indicate when a message has been split.
-One may pass a function with the same signature to customize this text, or e.g. pass `(i, n) -> ""` to not
-display any text indicating that the messages have been split.
+By default, [`SlackThreads.combine_texts`](@ref) is used to combine the message text and attachment link text
+into a set of messages, which returns multiple messages in the case of many attachments.
+One may pass any function to the `combine_texts` keyword argument which accepts and returns a vector of strings,
+for example, `texts -> SlackThreads.combine_texts(texts; max_length=100, message_count_suffix=(i, n) -> "")`
+to split messages after 100 characters, and to not add a `[\$i / \$n]` suffix to the messages.
 """
 function (thread::SlackThread)(text::AbstractString, uploads...;
-                               format_message_counts=format_message_counts)
+                               combine_texts=combine_texts)
     return @maybecatch begin
         if thread.channel === nothing
             @warn "No Slack channel configured; message not sent." text uploads
@@ -152,7 +153,7 @@ function (thread::SlackThread)(text::AbstractString, uploads...;
                 push!(texts, format_slack_link(r.file.permalink, " "))
             end
 
-            messages = combine_texts(texts; format_message_counts)
+            messages = combine_texts(texts)
             local r
             for msg in messages
                 r = send_message(thread, msg)
