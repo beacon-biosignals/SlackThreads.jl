@@ -71,7 +71,8 @@ function format_slack_link(uri, msg=nothing)
 end
 
 """
-    (thread::SlackThread)(text::AbstractString, uploads...)
+    (thread::SlackThread)(text::AbstractString, uploads...;
+                          combine_texts=combine_texts)
 
 Sends a message to the Slack thread with the contents `text`. If this is the
 first message sent by `thread`, this starts a new thread (in `thread.channel`),
@@ -111,8 +112,17 @@ Valid `object`s are:
 * Emits `@debug` logs when sending requests and recieving responses from the Slack API.
 * Emits `@warn` logs with the contents of requests to the Slack API when the channel or token is not configured correctly (in lieu of sending a request)
 * Emits `@error` logs when an exception is encountered or Slack returns an error response.
+
+## Message splitting
+
+By default, [`SlackThreads.combine_texts`](@ref) is used to combine the message text and attachment link text
+into a set of messages, which returns multiple messages in the case of many attachments.
+One may pass any function to the `combine_texts` keyword argument which accepts and returns a vector of strings,
+for example, `texts -> SlackThreads.combine_texts(texts; max_length=100, message_count_suffix=(i, n) -> "")`
+to split messages after 100 characters, and to not add a `[\$i / \$n]` suffix to the messages.
 """
-function (thread::SlackThread)(text::AbstractString, uploads...)
+function (thread::SlackThread)(text::AbstractString, uploads...;
+                               combine_texts=combine_texts)
     return @maybecatch begin
         if thread.channel === nothing
             @warn "No Slack channel configured; message not sent." text uploads
@@ -135,18 +145,26 @@ function (thread::SlackThread)(text::AbstractString, uploads...)
                 return upload_file(local_file(only(uploads); dir); extra_args)
             end
 
+            texts = String[text]
+
             for item in uploads
                 r = upload_file(local_file(item; dir))
                 r === nothing && continue
-                text *= format_slack_link(r.file.permalink, " ")
+                push!(texts, format_slack_link(r.file.permalink, " "))
             end
 
-            return send_message(thread, text)
+            messages = combine_texts(texts)
+            local r
+            for msg in messages
+                r = send_message(thread, msg)
+            end
+            return r # return last response
         end
     end "Error when attempting to send message to Slack thread"
 end
 
 include("slack_api.jl")
 include("slack_log_exception.jl")
+include("utilities.jl")
 
 end # module

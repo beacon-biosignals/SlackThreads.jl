@@ -173,6 +173,39 @@ end
         Aqua.test_all(SlackThreads; ambiguities=false)
     end
 
+    @testset "Utilities" begin
+        message_count_suffix = (i, n) -> ""
+        messages = SlackThreads.combine_texts(["abcdef", "abc"]; max_length=1,
+                                              message_count_suffix)
+        @test messages == ["abcdef", "abc"] # 2 messages
+
+        messages = SlackThreads.combine_texts(["abcdef", "abcdef", "a", "b"]; max_length=2,
+                                              message_count_suffix)
+        @test messages == ["abcdef", "abcdef", "ab"] # 3 messages
+
+        messages = SlackThreads.combine_texts(["abcdef", "abc", "d"]; max_length=4,
+                                              message_count_suffix)
+        @test messages == ["abcdef", "abcd"]  # can combine last two
+
+        messages = SlackThreads.combine_texts(["d", "abcdef", "abc"]; max_length=4,
+                                              message_count_suffix)
+        @test messages == ["d", "abcdef", "abc"] # cannot combine anything
+
+        vals = (x for x in ("d", "x", "abcdef", "abc")) # test iterator
+        messages = SlackThreads.combine_texts(vals; max_length=4, message_count_suffix)
+        @test messages == ["dx", "abcdef", "abc"] # can combine first two
+
+        # Edge case: 1 message
+        for max_length in (0, 1, 5)
+            messages = SlackThreads.combine_texts(["a"]; max_length, message_count_suffix)
+            @test messages == ["a"]
+        end
+
+        # Test `message_count_suffix`
+        messages = SlackThreads.combine_texts(["a"]; message_count_suffix=(i, n) -> "$i/$n")
+        @test messages == ["a1/1"]
+    end
+
     # Now we test with `SlackThreads.CATCH_EXCEPTIONS[] = false`, i.e.
     # with throwing exceptions. This option exists only for testing, really.
     # The point is we don't want our tests to "pass" while logging exceptions
