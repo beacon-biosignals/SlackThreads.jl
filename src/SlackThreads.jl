@@ -85,9 +85,10 @@ pairs as `uploads`.
 Returns:
 
 * If the request is successful, returns Slack's response for the message as a
-  `JSON3.Object`. If more than one upload is present, the response will be for a
-  text-only request, since the file uploads will be processed separately (using
-  the strategy from https://stackoverflow.com/a/63391026/12486544).
+  `JSON3.Object`. If more than one upload is present, or `options` are passed,
+  the response will be for a text-only request, since the file uploads will
+  be processed separately (using the strategy from
+  https://stackoverflow.com/a/63391026/12486544).
 * If the request is not successful, returns `nothing`.
 
 ## Uploads
