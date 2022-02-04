@@ -23,7 +23,8 @@ The purpose of this is for nicely splitting long lists of attachments.
 The keyword argument `message_count_suffix` defaults to [`SlackThreads.message_count_suffix`](@ref), and is used
 for formatting the suffix of messages in the case that a message needs to split into multiple messages.
 """
-function combine_texts(texts; max_length=MAX_MESSAGE_LENGTH, message_count_suffix=message_count_suffix)
+function combine_texts(texts; max_length=MAX_MESSAGE_LENGTH,
+                       message_count_suffix=message_count_suffix)
     messages = String[]
     current_message = ""
     current_length = 0
