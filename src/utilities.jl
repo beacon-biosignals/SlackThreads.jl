@@ -1,3 +1,7 @@
+# Slack `chat.postMessage` recommends keeping the character length around 4000:
+# https://api.slack.com/methods/chat.postMessage#formatting
+const MAX_MESSAGE_LENGTH = 3800
+
 """
     message_count_suffix(i, n)
 
@@ -8,7 +12,7 @@ function message_count_suffix(i, n)
 end
 
 """
-    combine_texts(texts; max_length=3800, message_count_suffix=message_count_suffix) -> Vector{String}
+    combine_texts(texts; max_length=$MAX_MESSAGE_LENGTH, message_count_suffix=message_count_suffix) -> Vector{String}
 
 Combine `N` strings in `texts` into `M <= N` strings, by concatenating consecutive strings, such that
 each of the resulting strings has length `<= max_length`, unless the input string was already
@@ -19,7 +23,7 @@ The purpose of this is for nicely splitting long lists of attachments.
 The keyword argument `message_count_suffix` defaults to [`SlackThreads.message_count_suffix`](@ref), and is used
 for formatting the suffix of messages in the case that a message needs to split into multiple messages.
 """
-function combine_texts(texts; max_length=3800, message_count_suffix=message_count_suffix)
+function combine_texts(texts; max_length=MAX_MESSAGE_LENGTH, message_count_suffix=message_count_suffix)
     messages = String[]
     current_message = ""
     current_length = 0
