@@ -233,6 +233,11 @@ end
         catch DomainError end
         @test contains(d.logged[3].args[1], ":alert: Error occured! :alert:")
         @test d.logged[3].call == :send_exception_message
+
+        d("bye"; unfurl_media = true)
+        @test d.logged[4].call == :DummyThread
+        @test d.logged[4].args == tuple("bye")
+        @test d.logged[4].kwargs == (; unfurl_media = true)
     end
 
     # @testset "$ThreadType" for ThreadType in (SlackThread, DummyThread)
