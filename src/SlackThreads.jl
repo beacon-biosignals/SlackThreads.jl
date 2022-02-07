@@ -74,7 +74,7 @@ end
 
 """
     (thread::SlackThread)(text::AbstractString, uploads...;
-                          combine_texts=combine_texts)
+                          combine_texts=combine_texts, options...)
 
 Sends a message to the Slack thread with the contents `text`. If this is the
 first message sent by `thread`, this starts a new thread (in `thread.channel`),
@@ -86,9 +86,10 @@ pairs as `uploads`.
 Returns:
 
 * If the request is successful, returns Slack's response for the message as a
-  `JSON3.Object`. If more than one upload is present, the response will be for a
-  text-only request, since the file uploads will be processed separately (using
-  the strategy from https://stackoverflow.com/a/63391026/12486544).
+  `JSON3.Object`. If more than one upload is present, or `options` are passed,
+  the response will be for a text-only request, since the file uploads will
+  be processed separately (using the strategy from
+  https://stackoverflow.com/a/63391026/12486544).
 * If the request is not successful, returns `nothing`.
 
 ## Uploads
@@ -122,9 +123,14 @@ into a set of messages, which returns multiple messages in the case of many atta
 One may pass any function to the `combine_texts` keyword argument which accepts and returns a vector of strings,
 for example, `texts -> SlackThreads.combine_texts(texts; max_length=100, message_count_suffix=(i, n) -> "")`
 to split messages after 100 characters, and to not add a `[\$i / \$n]` suffix to the messages.
+
+## Options
+
+One may pass any optional arguments supported by [`chat.postMessage`](https://api.slack.com/methods/chat.postMessage#args),
+e.g. `link_names = true`, as keyword arguments.
 """
 function (thread::SlackThread)(text::AbstractString, uploads...;
-                               combine_texts=combine_texts)
+                               combine_texts=combine_texts, options...)
     return @maybecatch begin
         if thread.channel === nothing
             @warn "No Slack channel configured; message not sent." text uploads
@@ -132,16 +138,17 @@ function (thread::SlackThread)(text::AbstractString, uploads...;
         end
         if isempty(uploads)
             # send directly
-            return send_message(thread, text)
+            return send_message(thread, text; options...)
         end
         mktempdir() do dir
-            if length(uploads) == 1 && thread.ts !== nothing
+            if length(uploads) == 1 && thread.ts !== nothing && isempty(options)
                 # special case: upload directly to thread
                 # cannot do this if we don't have a `ts` already because
                 # the response doesn't give us a `ts` to use.
                 # i.e. we can post the message but don't have the `ts`
                 # to thread from it. So in that case, we fallback
-                # to the general case.
+                # to the general case. We also can't do this if the user has passed
+                # any options, since those are likely only valid for `chat.postMessage`.
                 extra_args = ["-F", "initial_comment=$(text)", "-F",
                               "channels=$(thread.channel)", "-F", "thread_ts=$(thread.ts)"]
                 return upload_file(local_file(only(uploads); dir); extra_args)
@@ -158,7 +165,7 @@ function (thread::SlackThread)(text::AbstractString, uploads...;
             messages = combine_texts(texts)
             local r
             for msg in messages
-                r = send_message(thread, msg)
+                r = send_message(thread, msg; options...)
             end
             return r # return last response
         end

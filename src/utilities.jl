@@ -12,7 +12,8 @@ function message_count_suffix(i, n)
 end
 
 """
-    combine_texts(texts; max_length=$MAX_MESSAGE_LENGTH, message_count_suffix=message_count_suffix) -> Vector{String}
+    combine_texts(texts; max_length=$MAX_MESSAGE_LENGTH,          
+                  message_count_suffix=message_count_suffix) -> Vector{String}
 
 Combine `N` strings in `texts` into `M <= N` strings, by concatenating consecutive strings, such that
 each of the resulting strings has length `<= max_length`, unless the input string was already
