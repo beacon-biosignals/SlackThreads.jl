@@ -206,6 +206,16 @@ end
         @test messages == ["a1/1"]
     end
 
+    @testset "DummyThreads" begin
+        d = DummyThread()
+
+        d("hi")
+        @test d.logged[1] = tuple("hi")
+        d("hi", "a" => "b")
+        @test d.logged[2] = tuple("hi", "a" => "b")
+
+    end
+
     # Now we test with `SlackThreads.CATCH_EXCEPTIONS[] = false`, i.e.
     # with throwing exceptions. This option exists only for testing, really.
     # The point is we don't want our tests to "pass" while logging exceptions

@@ -37,7 +37,7 @@ function local_file(name, object; dir=mktempdir())
     return local_path
 end
 
-function upload_file(local_path::AbstractString; extra_args=String[])
+function upload_file(::SlackThread, local_path::AbstractString; extra_args=String[])
     api = "https://slack.com/api/files.upload"
 
     token = get(ENV, "SLACK_TOKEN", nothing)
