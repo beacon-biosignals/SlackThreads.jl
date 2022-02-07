@@ -227,17 +227,18 @@ end
         d("hi", "a" => "b")
         @test d.logged[2].args == ("hi", "a" => "b")
         try
-        slack_log_exception(d) do
-            sqrt(-1)
+            slack_log_exception(d) do
+                return sqrt(-1)
+            end
+        catch DomainError
         end
-        catch DomainError end
         @test contains(d.logged[3].args[1], ":alert: Error occured! :alert:")
         @test d.logged[3].call == :send_exception_message
 
-        d("bye"; unfurl_media = true)
+        d("bye"; unfurl_media=true)
         @test d.logged[4].call == :DummyThread
         @test d.logged[4].args == tuple("bye")
-        @test d.logged[4].kwargs == (; unfurl_media = true)
+        @test d.logged[4].kwargs == (; unfurl_media=true)
     end
 
     # Now we test with `SlackThreads.CATCH_EXCEPTIONS[] = false`, i.e.
@@ -270,16 +271,16 @@ end
                         @test thread.ts == "abc"
 
                         @test thread("hi again", "file.txt" => "this is a string").ok ==
-                            true
+                              true
 
                         # We didn't pass a `file` back in our reply
                         @test_throws KeyError thread("hi again",
-                                                    "file.txt" => "this is a string",
-                                                    "file2.txt" => "abc")
+                                                     "file.txt" => "this is a string",
+                                                     "file2.txt" => "abc")
                     end
 
                     Mocking.apply(readchomp_reply_patch(Dict("ok" => false,
-                                                            "error" => "no"))) do
+                                                             "error" => "no"))) do
                         @test_throws SlackThreads.SlackError("no") thread("bye")
                     end
 
