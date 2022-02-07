@@ -240,7 +240,6 @@ end
         @test d.logged[4].kwargs == (; unfurl_media = true)
     end
 
-    # @testset "$ThreadType" for ThreadType in (SlackThread, DummyThread)
     # Now we test with `SlackThreads.CATCH_EXCEPTIONS[] = false`, i.e.
     # with throwing exceptions. This option exists only for testing, really.
     # The point is we don't want our tests to "pass" while logging exceptions
