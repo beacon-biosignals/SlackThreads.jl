@@ -14,7 +14,7 @@ mutable struct SlackThread <: AbstractSlackThread
     ts::Union{String,Nothing} # In Slack terminology, `ts_thread`: the ID of another un-threaded message to reply to (https://api.slack.com/reference/messaging/payload)
 end
 
-function Base.copyto!(thread::SlackThread, obj)
+function Base.copyto!(thread::AbstractSlackThread, obj)
     thread.channel = obj.channel
     thread.ts = obj.ts
     return thread

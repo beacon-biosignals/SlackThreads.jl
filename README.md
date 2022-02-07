@@ -67,6 +67,9 @@ julia> thread("Update", "plot1.png" => scatter(rand(10), rand(10)),
                         "plot2.png" => lines(rand(10)));
 ```
 
+One may use `thread = DummyThread()` to instead store messages without
+sending them to Slack.
+
 ## Exceptions
 
 SlackThreads does not throw any exceptions when:
