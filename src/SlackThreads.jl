@@ -160,7 +160,7 @@ function (thread::SlackThread)(text::AbstractString, uploads...;
                 push!(texts, format_slack_link(r.file.permalink, " "))
             end
 
-            messages = combine_texts(texts; format_message_counts)
+            messages = combine_texts(texts)
             local r
             for msg in messages
                 r = send_message(thread, msg; options...)
