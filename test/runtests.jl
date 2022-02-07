@@ -239,6 +239,14 @@ end
         @test d.logged[4].call == :DummyThread
         @test d.logged[4].args == tuple("bye")
         @test d.logged[4].kwargs == (; unfurl_media=true)
+
+        # (de)-Serialization
+        roundtrip = JSON3.read(JSON3.write(d), DummyThread)
+        @test roundtrip.logged[1] == d.logged[1]
+        @test roundtrip.logged[2].kwargs == d.logged[2].kwargs
+        # for some reason, JSON3 deserializes a Pair to a Dict (which is a collection of Pairs)
+        @test only(roundtrip.logged[2].args[2]) == d.logged[2].args[2]
+        @test roundtrip.logged[3] == d.logged[3]
     end
 
     # Now we test with `SlackThreads.CATCH_EXCEPTIONS[] = false`, i.e.

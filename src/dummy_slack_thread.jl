@@ -15,6 +15,11 @@ struct SlackCallRecord
     kwargs::NamedTuple
 end
 
+StructTypes.StructType(::Type{SlackCallRecord}) = StructTypes.Struct()
+# This makes it so JSON3 doesn't omit tuples/namedtuples if they are empty
+@inline StructTypes.isempty(::Type{SlackCallRecord}, ::NamedTuple) = false
+@inline StructTypes.isempty(::Type{SlackCallRecord}, ::Tuple) = false
+
 """
     DummyThread <: AbstractSlackThread
 
@@ -36,7 +41,7 @@ end
 
 DummyThread() = DummyThread(nothing, nothing, [])
 
-StructTypes.StructType(::DummyThread) = StructTypes.Struct()
+StructTypes.StructType(::Type{DummyThread}) = StructTypes.Struct()
 
 function (d::DummyThread)(args...; kwargs...)
     push!(d.logged, SlackCallRecord(:DummyThread, args, NamedTuple(kwargs)))
