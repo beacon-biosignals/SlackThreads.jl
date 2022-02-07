@@ -220,15 +220,19 @@ end
         JET_tests(DummyThread)
         d = DummyThread()
         d("hi")
-        @test d.logged[1] == tuple("hi")
+        @test d.logged[1] isa SlackCallRecord
+        @test d.logged[1].args == tuple("hi")
+        @test d.logged[1].call == :DummyThread
+        @test isempty(d.logged[1].kwargs)
         d("hi", "a" => "b")
-        @test d.logged[2] == ("hi", "a" => "b")
+        @test d.logged[2].args == ("hi", "a" => "b")
         try
         slack_log_exception(d) do
             sqrt(-1)
         end
         catch DomainError end
-        @test contains(d.logged[3][1], ":alert: Error occured! :alert:")
+        @test contains(d.logged[3].args[1], ":alert: Error occured! :alert:")
+        @test d.logged[3].call == :send_exception_message
     end
 
     # @testset "$ThreadType" for ThreadType in (SlackThread, DummyThread)

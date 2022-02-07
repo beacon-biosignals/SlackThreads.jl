@@ -5,7 +5,8 @@ using StructTypes
 using FileIO
 using Mocking
 
-export AbstractSlackThread, SlackThread, DummyThread, slack_log_exception
+export AbstractSlackThread, SlackThread, slack_log_exception
+export DummyThread, SlackCallRecord
 
 abstract type AbstractSlackThread end
 

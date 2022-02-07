@@ -19,7 +19,9 @@ default_exception_text(exception, backtrace) = """
                         interrupt_text=DEFAULT_INTERRUPT_TEXT,
                         exception_text=default_exception_text)
 
-Log an exception (and stacktrace) to a `AbstractSlackThread`. Can be used with a zero-argument
+Log an exception (and stacktrace) to a `AbstractSlackThread` by constructing
+a textual message and passing it to the `thread` with
+`SlackThreads.send_exception_message`. Can be used with a zero-argument
 function `f`, as in
 
 ```julia
