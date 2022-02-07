@@ -28,17 +28,17 @@ function readchomp_input_patch(check)
     return p
 end
 
-function JET_tests()
+function JET_tests(ThreadType; sound_broken=false)
     @testset "JET with args $args" for args in [("hi",), ("hi", "str" => "hello"),
                                                 ("hi", "str.txt" => "hello", "a" => "b")]
-        thread = withenv(() -> SlackThread(), "SLACK_CHANNEL" => "hi")
+        thread = withenv(() -> ThreadType(), "SLACK_CHANNEL" => "hi")
 
         # `@test_call` needs JET v0.5, which needs Julia 1.7
         # We need `@static` here since macroexpansion happens before runtime,
         # i.e. a runtime check is not enough.
         @static if VERSION >= v"1.7"
             @test_call target_modules = (SlackThreads,) thread(args...)
-            @test_call target_modules = (SlackThreads,) mode = :sound broken = true thread(args...)
+            @test_call target_modules = (SlackThreads,) mode = :sound broken = sound_broken thread(args...)
         end
     end
 end
@@ -207,15 +207,21 @@ end
     end
 
     @testset "DummyThreads" begin
+        JET_tests(DummyThread)
         d = DummyThread()
-
         d("hi")
-        @test d.logged[1] = tuple("hi")
+        @test d.logged[1] == tuple("hi")
         d("hi", "a" => "b")
-        @test d.logged[2] = tuple("hi", "a" => "b")
-
+        @test d.logged[2] == ("hi", "a" => "b")
+        try
+        slack_log_exception(d) do
+            sqrt(-1)
+        end
+        catch DomainError end
+        @test contains(d.logged[3][1], ":alert: Error occured! :alert:")
     end
 
+    # @testset "$ThreadType" for ThreadType in (SlackThread, DummyThread)
     # Now we test with `SlackThreads.CATCH_EXCEPTIONS[] = false`, i.e.
     # with throwing exceptions. This option exists only for testing, really.
     # The point is we don't want our tests to "pass" while logging exceptions
@@ -225,7 +231,7 @@ end
         status = SlackThreads.CATCH_EXCEPTIONS[]
         SlackThreads.CATCH_EXCEPTIONS[] = false
         try
-            JET_tests()
+            JET_tests(SlackThread; sound_broken=true)
 
             @testset "Non-throwing tests" begin
                 tests_without_errors()
@@ -246,16 +252,16 @@ end
                         @test thread.ts == "abc"
 
                         @test thread("hi again", "file.txt" => "this is a string").ok ==
-                              true
+                            true
 
                         # We didn't pass a `file` back in our reply
                         @test_throws KeyError thread("hi again",
-                                                     "file.txt" => "this is a string",
-                                                     "file2.txt" => "abc")
+                                                    "file.txt" => "this is a string",
+                                                    "file2.txt" => "abc")
                     end
 
                     Mocking.apply(readchomp_reply_patch(Dict("ok" => false,
-                                                             "error" => "no"))) do
+                                                            "error" => "no"))) do
                         @test_throws SlackThreads.SlackError("no") thread("bye")
                     end
 

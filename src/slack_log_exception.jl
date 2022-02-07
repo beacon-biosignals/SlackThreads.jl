@@ -60,7 +60,9 @@ function slack_log_exception(thread::AbstractSlackThread, exception, backtrace;
     @maybecatch begin
         msg = exception isa InterruptException ? interrupt_text :
               exception_text(exception, backtrace)
-        send_message(thread, msg)
+            send_exception_message(thread, msg)
     end "Error when logging exception to Slack."
     return nothing
 end
+
+send_exception_message(thread::SlackThread, msg) = send_message(thread, msg)

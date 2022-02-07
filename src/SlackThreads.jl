@@ -73,8 +73,8 @@ function format_slack_link(uri, msg=nothing)
 end
 
 """
-    (thread::AbstractSlackThread)(text::AbstractString, uploads...;
-                                  combine_texts=combine_texts)
+    (thread::SlackThread)(text::AbstractString, uploads...;
+                          combine_texts=combine_texts)
 
 Sends a message to the Slack thread with the contents `text`. If this is the
 first message sent by `thread`, this starts a new thread (in `thread.channel`),
@@ -123,7 +123,7 @@ One may pass any function to the `combine_texts` keyword argument which accepts 
 for example, `texts -> SlackThreads.combine_texts(texts; max_length=100, message_count_suffix=(i, n) -> "")`
 to split messages after 100 characters, and to not add a `[\$i / \$n]` suffix to the messages.
 """
-function (thread::AbstractSlackThread)(text::AbstractString, uploads...;
+function (thread::SlackThread)(text::AbstractString, uploads...;
                                combine_texts=combine_texts)
     return @maybecatch begin
         if thread.channel === nothing
@@ -144,13 +144,13 @@ function (thread::AbstractSlackThread)(text::AbstractString, uploads...;
                 # to the general case.
                 extra_args = ["-F", "initial_comment=$(text)", "-F",
                               "channels=$(thread.channel)", "-F", "thread_ts=$(thread.ts)"]
-                return upload_file(thread, local_file(only(uploads); dir); extra_args)
+                return upload_file(local_file(only(uploads); dir); extra_args)
             end
 
             texts = String[text]
 
             for item in uploads
-                r = upload_file(thread, local_file(item; dir))
+                r = upload_file(local_file(item; dir))
                 r === nothing && continue
                 push!(texts, format_slack_link(r.file.permalink, " "))
             end
