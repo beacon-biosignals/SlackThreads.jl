@@ -240,6 +240,15 @@ end
         @test d.logged[4].args == tuple("bye")
         @test d.logged[4].kwargs == (; unfurl_media=true)
 
+        # Properties
+        @test propertynames(d) == (:channel, :ts, :logged)
+        d.channel = "hi" # no error
+        d.ts = "bye" # no error
+        @test_throws MethodError d.channel = 1
+        @test_throws MethodError d.ts = 1
+        @test d.channel === nothing
+        @test d.ts === nothing
+
         # (de)-Serialization
         roundtrip = JSON3.read(JSON3.write(d), DummyThread)
         @test roundtrip.logged[1] == d.logged[1]

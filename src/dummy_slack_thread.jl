@@ -33,13 +33,33 @@ The `logged` field is a `Vector{SlackCallRecord}` corresponding to logging calls
 
 See also: [`SlackCallRecord`](@ref).
 """
-mutable struct DummyThread <: AbstractSlackThread
-    channel::Union{String,Nothing}
-    ts::Union{String,Nothing}
+struct DummyThread <: AbstractSlackThread
     logged::Vector{SlackCallRecord}
 end
 
-DummyThread() = DummyThread(nothing, nothing, [])
+# Allow "setting" `ts` or `channel` for interchangability with `SlackThread`
+function Base.setproperty!(d::DummyThread, name::Symbol, x::Any)
+    if name === :ts || name === :channel
+        if x !== nothing
+            # throw error if we can't convert, just like a SlackThread would
+            convert(String, x)
+        end
+        return x
+    end
+    return setfield!(d, name, x) # get the usual error
+end
+
+# Return `nothing` if asked for `ts` or `channel`
+function Base.getproperty(d::DummyThread, name::Symbol)
+    if name === :ts || name === :channel
+        return nothing
+    end
+    return getfield(d, name)
+end
+
+Base.propertynames(::DummyThread) = (:channel, :ts, :logged)
+
+DummyThread() = DummyThread([])
 
 StructTypes.StructType(::Type{DummyThread}) = StructTypes.Struct()
 
