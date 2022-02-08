@@ -244,6 +244,7 @@ end
         @test propertynames(d) == (:channel, :ts, :logged)
         d.channel = "hi" # no error
         d.ts = "bye" # no error
+        @test_throws ErrorException("type DummyThread has no field xyz") d.xyz
         @test_throws MethodError d.channel = 1
         @test_throws MethodError d.ts = 1
         @test d.channel === nothing
