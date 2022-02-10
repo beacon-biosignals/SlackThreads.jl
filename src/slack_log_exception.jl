@@ -13,13 +13,15 @@ default_exception_text(exception, backtrace) = """
             """
 
 """
-    slack_log_exception(f, thread::SlackThread; interrupt_text=DEFAULT_INTERRUPT_TEXT,
+    slack_log_exception(f, thread::AbstractSlackThread; interrupt_text=DEFAULT_INTERRUPT_TEXT,
                         exception_text=default_exception_text)
-    slack_log_exception(thread::SlackThread, exception, backtrace;
+    slack_log_exception(thread::AbstractSlackThread, exception, backtrace;
                         interrupt_text=DEFAULT_INTERRUPT_TEXT,
                         exception_text=default_exception_text)
 
-Log an exception (and stacktrace) to a `SlackThread`. Can be used with a zero-argument
+Log an exception (and stacktrace) to a `AbstractSlackThread` by constructing
+a textual message and passing it to the `thread` with
+`SlackThreads.send_exception_message`. Can be used with a zero-argument
 function `f`, as in
 
 ```julia
@@ -43,7 +45,8 @@ end
 * Pass `interrupt_text::AbstractString` to customize the message sent when an `InterruptException` is caught. See `SlackThreads.DEFAULT_INTERRUPT_TEXT` for the default text.
 * Pass a two-argument function `exception_text` to customize the message shown for a general exception, where the arguments are `exception` and `backtrace`.
 """
-function slack_log_exception(f, thread::SlackThread; interrupt_text=DEFAULT_INTERRUPT_TEXT,
+function slack_log_exception(f, thread::AbstractSlackThread;
+                             interrupt_text=DEFAULT_INTERRUPT_TEXT,
                              exception_text=default_exception_text)
     try
         f()
@@ -54,13 +57,15 @@ function slack_log_exception(f, thread::SlackThread; interrupt_text=DEFAULT_INTE
     end
 end
 
-function slack_log_exception(thread::SlackThread, exception, backtrace;
+function slack_log_exception(thread::AbstractSlackThread, exception, backtrace;
                              interrupt_text=DEFAULT_INTERRUPT_TEXT,
                              exception_text=default_exception_text)
     @maybecatch begin
         msg = exception isa InterruptException ? interrupt_text :
               exception_text(exception, backtrace)
-        send_message(thread, msg)
+        send_exception_message(thread, msg)
     end "Error when logging exception to Slack."
     return nothing
 end
+
+send_exception_message(thread::SlackThread, msg) = send_message(thread, msg)

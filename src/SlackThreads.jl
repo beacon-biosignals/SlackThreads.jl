@@ -5,9 +5,12 @@ using StructTypes
 using FileIO
 using Mocking
 
-export SlackThread, slack_log_exception
+export AbstractSlackThread, SlackThread, slack_log_exception
+export DummyThread, SlackCallRecord
 
-mutable struct SlackThread
+abstract type AbstractSlackThread end
+
+mutable struct SlackThread <: AbstractSlackThread
     channel::Union{String,Nothing}
     ts::Union{String,Nothing} # In Slack terminology, `ts_thread`: the ID of another un-threaded message to reply to (https://api.slack.com/reference/messaging/payload)
 end
@@ -173,5 +176,6 @@ end
 include("slack_api.jl")
 include("slack_log_exception.jl")
 include("utilities.jl")
+include("dummy_slack_thread.jl")
 
 end # module

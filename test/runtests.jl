@@ -28,17 +28,17 @@ function readchomp_input_patch(check)
     return p
 end
 
-function JET_tests()
+function JET_tests(ThreadType; sound_broken=false)
     @testset "JET with args $args" for args in [("hi",), ("hi", "str" => "hello"),
                                                 ("hi", "str.txt" => "hello", "a" => "b")]
-        thread = withenv(() -> SlackThread(), "SLACK_CHANNEL" => "hi")
+        thread = withenv(() -> ThreadType(), "SLACK_CHANNEL" => "hi")
 
         # `@test_call` needs JET v0.5, which needs Julia 1.7
         # We need `@static` here since macroexpansion happens before runtime,
         # i.e. a runtime check is not enough.
         @static if VERSION >= v"1.7"
             @test_call target_modules = (SlackThreads,) thread(args...)
-            @test_call target_modules = (SlackThreads,) mode = :sound broken = true thread(args...)
+            @test_call target_modules = (SlackThreads,) mode = :sound broken = sound_broken thread(args...)
         end
     end
 end
@@ -216,6 +216,49 @@ end
         @test messages == ["a1/1"]
     end
 
+    @testset "DummyThreads" begin
+        JET_tests(DummyThread)
+        d = DummyThread()
+        d("hi")
+        @test d.logged[1] isa SlackCallRecord
+        @test d.logged[1].args == tuple("hi")
+        @test d.logged[1].call == :DummyThread
+        @test isempty(d.logged[1].kwargs)
+        d("hi", "a" => "b")
+        @test d.logged[2].args == ("hi", "a" => "b")
+        try
+            slack_log_exception(d) do
+                return sqrt(-1)
+            end
+        catch DomainError
+        end
+        @test contains(d.logged[3].args[1], ":alert: Error occured! :alert:")
+        @test d.logged[3].call == :send_exception_message
+
+        d("bye"; unfurl_media=true)
+        @test d.logged[4].call == :DummyThread
+        @test d.logged[4].args == tuple("bye")
+        @test d.logged[4].kwargs == (; unfurl_media=true)
+
+        # Properties
+        @test propertynames(d) == (:channel, :ts, :logged)
+        d.channel = "hi" # no error
+        d.ts = "bye" # no error
+        @test_throws ErrorException("type DummyThread has no field xyz") d.xyz
+        @test_throws MethodError d.channel = 1
+        @test_throws MethodError d.ts = 1
+        @test d.channel === nothing
+        @test d.ts === nothing
+
+        # (de)-Serialization
+        roundtrip = JSON3.read(JSON3.write(d), DummyThread)
+        @test roundtrip.logged[1] == d.logged[1]
+        @test roundtrip.logged[2].kwargs == d.logged[2].kwargs
+        # for some reason, JSON3 deserializes a Pair to a Dict (which is a collection of Pairs)
+        @test only(roundtrip.logged[2].args[2]) == d.logged[2].args[2]
+        @test roundtrip.logged[3] == d.logged[3]
+    end
+
     # Now we test with `SlackThreads.CATCH_EXCEPTIONS[] = false`, i.e.
     # with throwing exceptions. This option exists only for testing, really.
     # The point is we don't want our tests to "pass" while logging exceptions
@@ -225,7 +268,7 @@ end
         status = SlackThreads.CATCH_EXCEPTIONS[]
         SlackThreads.CATCH_EXCEPTIONS[] = false
         try
-            JET_tests()
+            JET_tests(SlackThread; sound_broken=true)
 
             @testset "Non-throwing tests" begin
                 tests_without_errors()
