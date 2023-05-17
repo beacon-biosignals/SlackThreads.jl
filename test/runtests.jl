@@ -78,7 +78,7 @@ function tests_without_errors()
 
         hi_patch = request_input_patch() do api, headers, body
             # Just a reference test; we don't really want to hit up the Slack API
-            # from CI here, so let's just check the curl query is one that works
+            # from CI here, so let's just check the HTTP.post query is one that works
             # from manual testing.
             # This could break for innocuous reasons; in that case, just update it here
             # or find a better test.
