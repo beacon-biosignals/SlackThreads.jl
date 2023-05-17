@@ -1,7 +1,7 @@
 name = "SlackThreads"
 uuid = "a271ce43-5be6-465b-b549-2328063b090f"
 authors = ["Beacon Biosignals, Inc."]
-version = "0.1.4"
+version = "0.1.5"
 
 [deps]
 CURL_jll = "b21e61f3-bafc-59ac-ab14-4c5c62d6588d"

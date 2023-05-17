@@ -7,6 +7,8 @@ using CairoMakie
 using Logging
 using Aqua
 
+using CURL_jll
+
 Mocking.activate()
 
 const OK_REPLY = Dict("ok" => true)
