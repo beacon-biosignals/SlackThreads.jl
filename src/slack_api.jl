@@ -92,11 +92,18 @@ function send_message(thread::SlackThread, text::AbstractString; options...)
     else
         @debug "Sending slack message" data api
     end
-    auth = "Authorization: Bearer $(token)"
+
+    headers = ["Authorization" => "Bearer $(token)",
+               "Content-type" => "application/json; charset=utf-8"]
 
     response = @maybecatch begin
-        JSON3.read(@mock readchomp(`curl -s -X POST -H $auth -H 'Content-type: application/json; charset=utf-8' --data $(data_str) $api`))
+        response = HTTP.request("POST", api, headers, data_str)
+        JSON3.read(response.body)
     end "Error when attempting to send message to Slack thread"
+
+    # response = @maybecatch begin
+    #     JSON3.read(@mock readchomp(`curl -s -X POST -H $auth -H 'Content-type: application/json; charset=utf-8' --data $(data_str) $api`))
+    # end "Error when attempting to send message to Slack thread"
 
     response === nothing && return nothing
     @debug "Slack responded" response

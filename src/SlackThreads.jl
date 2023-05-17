@@ -1,9 +1,10 @@
 module SlackThreads
 
-using JSON3
-using StructTypes
 using FileIO
+using HTTP
+using JSON3
 using Mocking
+using StructTypes
 
 export AbstractSlackThread, SlackThread, slack_log_exception
 export DummyThread, SlackCallRecord
