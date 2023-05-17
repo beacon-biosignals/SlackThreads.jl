@@ -2,6 +2,7 @@ using SlackThreads
 using Test
 using JET
 using Mocking
+using HTTP
 using JSON3
 using CairoMakie
 using Logging
@@ -24,6 +25,22 @@ function readchomp_input_patch(check)
     p = @patch function Base.readchomp(cmd)
         check(cmd)
         return JSON3.write(FILE_OK_REPLY)
+    end
+    return p
+end
+
+function request_reply_patch(reply, count=Ref(0))
+    p = @patch function HTTP.post(api, headers, body)
+        count[] += 1
+        return (; body=JSON3.write(reply))
+    end
+    return p
+end
+
+function request_input_patch(check)
+    p = @patch function HTTP.post(api, headers, body)
+        check(api, headers, body)
+        return (; body=JSON3.write(FILE_OK_REPLY))
     end
     return p
 end
@@ -54,7 +71,7 @@ function tests_without_errors()
 
     withenv("SLACK_TOKEN" => "hi", "SLACK_CHANNEL" => "bye") do
         thread = SlackThread()
-        Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "abc"))) do
+        Mocking.apply(request_reply_patch(Dict("ok" => true, "ts" => "abc"))) do
             @test thread("hi").ok == true
             @test thread.ts == "abc"
         end
@@ -75,7 +92,7 @@ function tests_without_errors()
             @test new_thread.ts == "123"
         end
 
-        hi_patch = readchomp_input_patch() do cmd
+        hi_patch = request_input_patch() do api, headers, body
             # Just a reference test; we don't really want to hit up the Slack API
             # from CI here, so let's just check the curl query is one that works
             # from manual testing.
@@ -83,18 +100,26 @@ function tests_without_errors()
             # or find a better test.
             # Currently, this is the only test that checks that the requests we are making
             # are reasonable; we could emit nonsense and all the other tests would pass!
-            @test cmd ==
-                  `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","text":"hi"}' https://slack.com/api/chat.postMessage`
+            @test api == "https://slack.com/api/chat.postMessage"
+            @test headers == ["Authorization" => "Bearer hi",
+                              "Content-type" => "application/json; charset=utf-8"]
+            @test body == raw"""{"channel":"bye","thread_ts":"abc","text":"hi"}"""
+            # @test cmd ==
+            #       `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","text":"hi"}' https://slack.com/api/chat.postMessage`
         end
 
         Mocking.apply(hi_patch) do
             @test thread("hi").ok == true
         end
 
-        option_patch = readchomp_input_patch() do cmd
+        option_patch = request_input_patch() do api, headers, body
             # Another reference test
-            @test cmd ==
-                  `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}' https://slack.com/api/chat.postMessage`
+            @test api == "https://slack.com/api/chat.postMessage"
+            @test headers == ["Authorization" => "Bearer hi",
+                              "Content-type" => "application/json; charset=utf-8"]
+            @test body == raw"""{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}"""
+            # @test cmd ==
+            #       `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}' https://slack.com/api/chat.postMessage`
         end
 
         Mocking.apply(option_patch) do
@@ -129,13 +154,14 @@ function tests_without_errors()
         end
         @test count[] == 3 # two file uploads plus the message
 
-        file_patch = readchomp_input_patch() do cmd
-            str = string(cmd)
+        file_patch = request_input_patch() do api, headers, body
             # Either we're uploading the two files...
-            case1 = contains(str, "-F file=@") &&
-                    (contains(str, "file.txt") || contains(str, "file2.txt"))
+            # (Form.data contains 2x elements for each form item: header + data)
+            case1 = body isa HTTP.Forms.Form &&
+                    body.data[2] isa IOStream &&
+                    occursin(r"file2?.txt", body.data[2].name)
             # Or sending the message with the links
-            case2 = contains(str, "hi again<LINK| ><LINK| >")
+            case2 = body isa String && contains(body, "hi again<LINK| ><LINK| >")
             @test case1 ⊻ case2
         end
 
