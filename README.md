@@ -37,12 +37,6 @@ has access, get the channel ID (a value like `C1H9RESGL` which you can find at
 the bottom of the "About" section of a channel). You can pass this to the
 `SlackThread` constructor or set an environmental variable `SLACK_CHANNEL`.
 
-### 3. `curl` binary
-
-Currently, this package assumes you have a `curl` binary installed and on your
-PATH. Hopefully this requirement can be lifted soon with the help of Yggdrasil
-(see [Yggdrasil#2720](https://github.com/JuliaPackaging/Yggdrasil/issues/2720)).
-
 ## Usage
 
 The main object of interest is a `SlackThread`, constructed by `thread =

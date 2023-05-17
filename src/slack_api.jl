@@ -37,7 +37,7 @@ function local_file(name, object; dir=mktempdir())
     return local_path
 end
 
-function upload_file(local_path::AbstractString; extra_args=String[])
+function upload_file(local_path::AbstractString; extra_body=Dict())
     api = "https://slack.com/api/files.upload"
 
     token = get(ENV, "SLACK_TOKEN", nothing)
@@ -48,10 +48,13 @@ function upload_file(local_path::AbstractString; extra_args=String[])
         @debug "Uploading slack file" api local_path
     end
 
-    auth = "Authorization: Bearer $(token)"
-
+    headers = ["Authorization" => "Bearer $(token)"]
     response = @maybecatch begin
-        JSON3.read(@mock readchomp(`curl -s -F file=@$(local_path) $(extra_args) -H $auth $api`))
+        open(local_path, "r") do file
+            body = HTTP.Form(vcat(collect(extra_body), ["file" => file]))
+            response = @mock HTTP.post(api, headers, body)
+            return JSON3.read(response.body)
+        end
     end "Error when attempting to upload file to Slack"
 
     response === nothing && return nothing
@@ -92,10 +95,13 @@ function send_message(thread::SlackThread, text::AbstractString; options...)
     else
         @debug "Sending slack message" data api
     end
-    auth = "Authorization: Bearer $(token)"
+
+    headers = ["Authorization" => "Bearer $(token)",
+               "Content-type" => "application/json; charset=utf-8"]
 
     response = @maybecatch begin
-        JSON3.read(@mock readchomp(`curl -s -X POST -H $auth -H 'Content-type: application/json; charset=utf-8' --data $(data_str) $api`))
+        response = @mock HTTP.post(api, headers, data_str)
+        JSON3.read(response.body)
     end "Error when attempting to send message to Slack thread"
 
     response === nothing && return nothing

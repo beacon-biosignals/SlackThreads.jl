@@ -1,9 +1,10 @@
 module SlackThreads
 
-using JSON3
-using StructTypes
 using FileIO
+using HTTP
+using JSON3
 using Mocking
+using StructTypes
 
 export AbstractSlackThread, SlackThread, slack_log_exception
 export DummyThread, SlackCallRecord
@@ -150,9 +151,10 @@ function (thread::SlackThread)(text::AbstractString, uploads...;
                 # to thread from it. So in that case, we fallback
                 # to the general case. We also can't do this if the user has passed
                 # any options, since those are likely only valid for `chat.postMessage`.
-                extra_args = ["-F", "initial_comment=$(text)", "-F",
-                              "channels=$(thread.channel)", "-F", "thread_ts=$(thread.ts)"]
-                return upload_file(local_file(only(uploads); dir); extra_args)
+                extra_body = ["initial_comment" => text,
+                              "channels" => thread.channel,
+                              "thread_ts" => thread.ts]
+                return upload_file(local_file(only(uploads); dir); extra_body)
             end
 
             texts = String[text]

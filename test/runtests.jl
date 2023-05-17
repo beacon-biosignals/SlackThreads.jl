@@ -2,6 +2,7 @@ using SlackThreads
 using Test
 using JET
 using Mocking
+using HTTP
 using JSON3
 using CairoMakie
 using Logging
@@ -12,18 +13,18 @@ Mocking.activate()
 const OK_REPLY = Dict("ok" => true)
 const FILE_OK_REPLY = Dict("ok" => true, "file" => Dict("permalink" => "LINK"))
 
-function readchomp_reply_patch(reply, count=Ref(0))
-    p = @patch function Base.readchomp(cmd)
+function request_reply_patch(reply, count=Ref(0))
+    p = @patch function HTTP.post(api, headers, body)
         count[] += 1
-        return JSON3.write(reply)
+        return (; body=JSON3.write(reply))
     end
     return p
 end
 
-function readchomp_input_patch(check)
-    p = @patch function Base.readchomp(cmd)
-        check(cmd)
-        return JSON3.write(FILE_OK_REPLY)
+function request_input_patch(check)
+    p = @patch function HTTP.post(api, headers, body)
+        check(api, headers, body)
+        return (; body=JSON3.write(FILE_OK_REPLY))
     end
     return p
 end
@@ -54,7 +55,7 @@ function tests_without_errors()
 
     withenv("SLACK_TOKEN" => "hi", "SLACK_CHANNEL" => "bye") do
         thread = SlackThread()
-        Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "abc"))) do
+        Mocking.apply(request_reply_patch(Dict("ok" => true, "ts" => "abc"))) do
             @test thread("hi").ok == true
             @test thread.ts == "abc"
         end
@@ -75,26 +76,31 @@ function tests_without_errors()
             @test new_thread.ts == "123"
         end
 
-        hi_patch = readchomp_input_patch() do cmd
+        hi_patch = request_input_patch() do api, headers, body
             # Just a reference test; we don't really want to hit up the Slack API
-            # from CI here, so let's just check the curl query is one that works
+            # from CI here, so let's just check the HTTP.post query is one that works
             # from manual testing.
             # This could break for innocuous reasons; in that case, just update it here
             # or find a better test.
             # Currently, this is the only test that checks that the requests we are making
             # are reasonable; we could emit nonsense and all the other tests would pass!
-            @test cmd ==
-                  `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","text":"hi"}' https://slack.com/api/chat.postMessage`
+            @test api == "https://slack.com/api/chat.postMessage"
+            @test headers == ["Authorization" => "Bearer hi",
+                              "Content-type" => "application/json; charset=utf-8"]
+            @test body == raw"""{"channel":"bye","thread_ts":"abc","text":"hi"}"""
         end
 
         Mocking.apply(hi_patch) do
             @test thread("hi").ok == true
         end
 
-        option_patch = readchomp_input_patch() do cmd
+        option_patch = request_input_patch() do api, headers, body
             # Another reference test
-            @test cmd ==
-                  `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}' https://slack.com/api/chat.postMessage`
+            @test api == "https://slack.com/api/chat.postMessage"
+            @test headers == ["Authorization" => "Bearer hi",
+                              "Content-type" => "application/json; charset=utf-8"]
+            @test body ==
+                  raw"""{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}"""
         end
 
         Mocking.apply(option_patch) do
@@ -102,9 +108,9 @@ function tests_without_errors()
         end
 
         count = Ref(0)
-        Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "123",
-                                                 "file" => Dict("permalink" => "LINK")),
-                                            count)) do
+        Mocking.apply(request_reply_patch(Dict("ok" => true, "ts" => "123",
+                                               "file" => Dict("permalink" => "LINK")),
+                                          count)) do
             t = SlackThread()
             @test t("bye", "file.txt" => "hi").ok == true
             # `ts` is correctly set
@@ -115,7 +121,7 @@ function tests_without_errors()
         @test count[] == 2
 
         count = Ref(0)
-        Mocking.apply(readchomp_reply_patch(OK_REPLY, count)) do
+        Mocking.apply(request_reply_patch(OK_REPLY, count)) do
             @test thread("bye").ok == true
             # `ts` doesn't change
             @test thread.ts == "abc"
@@ -123,19 +129,20 @@ function tests_without_errors()
         @test count[] == 1
 
         count = Ref(0)
-        Mocking.apply(readchomp_reply_patch(FILE_OK_REPLY, count)) do
+        Mocking.apply(request_reply_patch(FILE_OK_REPLY, count)) do
             @test thread("hi again", "file.txt" => "this is a string",
                          "file2.txt" => "abc").ok == true
         end
         @test count[] == 3 # two file uploads plus the message
 
-        file_patch = readchomp_input_patch() do cmd
-            str = string(cmd)
+        file_patch = request_input_patch() do api, headers, body
             # Either we're uploading the two files...
-            case1 = contains(str, "-F file=@") &&
-                    (contains(str, "file.txt") || contains(str, "file2.txt"))
+            # (Form.data contains 2x elements for each form item: header + data)
+            case1 = body isa HTTP.Forms.Form &&
+                    body.data[2] isa IOStream &&
+                    occursin(r"file2?.txt", body.data[2].name)
             # Or sending the message with the links
-            case2 = contains(str, "hi again<LINK| ><LINK| >")
+            case2 = body isa String && contains(body, "hi again<LINK| ><LINK| >")
             @test case1 ⊻ case2
         end
 
@@ -145,7 +152,7 @@ function tests_without_errors()
         end
 
         count = Ref(0)
-        Mocking.apply(readchomp_reply_patch(OK_REPLY, count)) do
+        Mocking.apply(request_reply_patch(OK_REPLY, count)) do
             @test_throws DomainError slack_log_exception(thread) do
                 return sqrt(-1)
             end
@@ -153,7 +160,7 @@ function tests_without_errors()
         @test count[] == 1
 
         count = Ref(0)
-        Mocking.apply(readchomp_reply_patch(OK_REPLY, count)) do
+        Mocking.apply(request_reply_patch(OK_REPLY, count)) do
             try
                 sqrt(-1)
             catch e
@@ -169,7 +176,7 @@ function tests_without_errors()
         plt2 = with_logger(NullLogger()) do
             return scatter(1:10, 1:10)
         end
-        Mocking.apply(readchomp_reply_patch(FILE_OK_REPLY)) do
+        Mocking.apply(request_reply_patch(FILE_OK_REPLY)) do
             @test thread("hi", "plot.png" => plt1).ok == true
             @test thread.ts == "abc"
 
@@ -283,7 +290,7 @@ end
                     thread = SlackThread()
                     thread.ts = "abc"
 
-                    Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "x"))) do
+                    Mocking.apply(request_reply_patch(Dict("ok" => true, "ts" => "x"))) do
                         @test thread("bye").ok == true
                         # `ts` still doesn't change
                         @test thread.ts == "abc"
@@ -297,12 +304,11 @@ end
                                                      "file2.txt" => "abc")
                     end
 
-                    Mocking.apply(readchomp_reply_patch(Dict("ok" => false,
-                                                             "error" => "no"))) do
+                    Mocking.apply(request_reply_patch(Dict("ok" => false, "error" => "no"))) do
                         @test_throws SlackThreads.SlackError("no") thread("bye")
                     end
 
-                    Mocking.apply(readchomp_reply_patch(Dict("ok" => false))) do
+                    Mocking.apply(request_reply_patch(Dict("ok" => false))) do
                         @test_throws SlackThreads.SlackError("No error field returned") thread("bye")
                     end
                 end
@@ -336,7 +342,7 @@ end
                     thread = SlackThread()
                     thread.ts = "abc"
 
-                    Mocking.apply(readchomp_reply_patch(Dict("ok" => true, "ts" => "x"))) do
+                    Mocking.apply(request_reply_patch(Dict("ok" => true, "ts" => "x"))) do
                         @test thread("bye").ok == true
                         # `ts` still doesn't change
                         @test thread.ts == "abc"
@@ -352,17 +358,16 @@ end
                         @test result === nothing
                     end
 
-                    Mocking.apply(readchomp_reply_patch(Dict("ok" => false,
-                                                             "error" => "no"))) do
+                    Mocking.apply(request_reply_patch(Dict("ok" => false, "error" => "no"))) do
                         @test (@test_logs (:error, r"Slack API") thread("bye")) === nothing
                     end
 
-                    Mocking.apply(readchomp_reply_patch(Dict("ok" => false))) do
+                    Mocking.apply(request_reply_patch(Dict("ok" => false))) do
                         @test (@test_logs (:error, r"Slack API") thread("bye")) === nothing
                     end
 
                     count = Ref(0)
-                    Mocking.apply(readchomp_reply_patch(Dict("ok" => false), count)) do
+                    Mocking.apply(request_reply_patch(Dict("ok" => false), count)) do
                         @test_logs (:error, "Error reported by Slack API") begin
                             @test_throws DomainError slack_log_exception(thread) do
                                 return sqrt(-1)
