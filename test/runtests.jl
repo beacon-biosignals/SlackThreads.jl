@@ -101,7 +101,8 @@ function tests_without_errors()
             @test api == "https://slack.com/api/chat.postMessage"
             @test headers == ["Authorization" => "Bearer hi",
                               "Content-type" => "application/json; charset=utf-8"]
-            @test body == raw"""{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}"""
+            @test body ==
+                  raw"""{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}"""
             # @test cmd ==
             #       `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}' https://slack.com/api/chat.postMessage`
         end
@@ -112,8 +113,8 @@ function tests_without_errors()
 
         count = Ref(0)
         Mocking.apply(request_reply_patch(Dict("ok" => true, "ts" => "123",
-                                                 "file" => Dict("permalink" => "LINK")),
-                                            count)) do
+                                               "file" => Dict("permalink" => "LINK")),
+                                          count)) do
             t = SlackThread()
             @test t("bye", "file.txt" => "hi").ok == true
             # `ts` is correctly set
@@ -307,8 +308,7 @@ end
                                                      "file2.txt" => "abc")
                     end
 
-                    Mocking.apply(request_reply_patch(Dict("ok" => false,
-                                                             "error" => "no"))) do
+                    Mocking.apply(request_reply_patch(Dict("ok" => false, "error" => "no"))) do
                         @test_throws SlackThreads.SlackError("no") thread("bye")
                     end
 
@@ -362,8 +362,7 @@ end
                         @test result === nothing
                     end
 
-                    Mocking.apply(request_reply_patch(Dict("ok" => false,
-                                                             "error" => "no"))) do
+                    Mocking.apply(request_reply_patch(Dict("ok" => false, "error" => "no"))) do
                         @test (@test_logs (:error, r"Slack API") thread("bye")) === nothing
                     end
 
