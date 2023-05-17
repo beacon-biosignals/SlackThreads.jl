@@ -84,7 +84,7 @@ function tests_without_errors()
             # Currently, this is the only test that checks that the requests we are making
             # are reasonable; we could emit nonsense and all the other tests would pass!
             @test cmd ==
-                  `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","text":"hi"}' https://slack.com/api/chat.postMessage`
+                  `$(curl()) -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","text":"hi"}' https://slack.com/api/chat.postMessage`
         end
 
         Mocking.apply(hi_patch) do
@@ -94,7 +94,7 @@ function tests_without_errors()
         option_patch = readchomp_input_patch() do cmd
             # Another reference test
             @test cmd ==
-                  `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}' https://slack.com/api/chat.postMessage`
+                  `$(curl()) -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}' https://slack.com/api/chat.postMessage`
         end
 
         Mocking.apply(option_patch) do

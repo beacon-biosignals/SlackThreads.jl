@@ -5,6 +5,8 @@ using StructTypes
 using FileIO
 using Mocking
 
+using CURL_jll
+
 export AbstractSlackThread, SlackThread, slack_log_exception
 export DummyThread, SlackCallRecord
 

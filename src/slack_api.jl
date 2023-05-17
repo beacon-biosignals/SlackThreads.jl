@@ -51,7 +51,7 @@ function upload_file(local_path::AbstractString; extra_args=String[])
     auth = "Authorization: Bearer $(token)"
 
     response = @maybecatch begin
-        JSON3.read(@mock readchomp(`curl -s -F file=@$(local_path) $(extra_args) -H $auth $api`))
+        JSON3.read(@mock readchomp(`$(curl()) -s -F file=@$(local_path) $(extra_args) -H $auth $api`))
     end "Error when attempting to upload file to Slack"
 
     response === nothing && return nothing
@@ -95,7 +95,7 @@ function send_message(thread::SlackThread, text::AbstractString; options...)
     auth = "Authorization: Bearer $(token)"
 
     response = @maybecatch begin
-        JSON3.read(@mock readchomp(`curl -s -X POST -H $auth -H 'Content-type: application/json; charset=utf-8' --data $(data_str) $api`))
+        JSON3.read(@mock readchomp(`$(curl()) -s -X POST -H $auth -H 'Content-type: application/json; charset=utf-8' --data $(data_str) $api`))
     end "Error when attempting to send message to Slack thread"
 
     response === nothing && return nothing
