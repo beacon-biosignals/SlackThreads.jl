@@ -88,8 +88,6 @@ function tests_without_errors()
             @test headers == ["Authorization" => "Bearer hi",
                               "Content-type" => "application/json; charset=utf-8"]
             @test body == raw"""{"channel":"bye","thread_ts":"abc","text":"hi"}"""
-            # @test cmd ==
-            #       `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","text":"hi"}' https://slack.com/api/chat.postMessage`
         end
 
         Mocking.apply(hi_patch) do
@@ -103,8 +101,6 @@ function tests_without_errors()
                               "Content-type" => "application/json; charset=utf-8"]
             @test body ==
                   raw"""{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}"""
-            # @test cmd ==
-            #       `curl -s -X POST -H 'Authorization: Bearer hi' -H 'Content-type: application/json; charset=utf-8' --data '{"channel":"bye","thread_ts":"abc","link_names":true,"text":"hi"}' https://slack.com/api/chat.postMessage`
         end
 
         Mocking.apply(option_patch) do
